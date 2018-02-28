@@ -15,11 +15,18 @@ If you have `opam` installed, you need to install the following packages using c
 
 `>> opam install ocamlbuild js-of-ocaml`
 
-Then, if it works, by executing 
+To be able to use the Javascript in the brower, you also need to install
+the browserify npm module:
+
+`npm install -g browserify`
+
+(Note: the example code support for the webbrowser is still not completeley working)
+
+Finally, if you write
 
 `>> make`
 
-it should print out number 60 and some more text. 
+it should print out number 60 and some more text.
 
 The makefile includes the following three commands:
 
@@ -28,10 +35,3 @@ The makefile includes the following three commands:
 	node main.js
 
 The first line compiles the file `code.ml` into byte code. Note that the package `js_of_ocaml` needs to be included. The second line compiles the byte code into Java script. Finally, the last line executes `main.js`, which imports and calls the OCaml code from JavaScript.
-
-
-
-
-
-
-
