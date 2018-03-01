@@ -87,8 +87,20 @@
 %%
 
 main:
+ | expr_seq
+    { $1 }
+
+exprseq:
+ |  {[]}
+ |  expr exprseq
+      {$1::$2}
+
+
+expr:
  | TRUE
      { TmConst($1.i,CTrue) }
+ | FALSE
+     { TmConst($1.i,CFalse) }
 
 
 
