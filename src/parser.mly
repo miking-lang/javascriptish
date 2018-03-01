@@ -88,7 +88,7 @@
 
 main:
  | TRUE
-     { TmBool($1.i,true) }
+     { TmConst($1.i,CTrue) }
 
 
 

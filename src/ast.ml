@@ -1,82 +1,123 @@
 (*
    Javascriptish is licensed under the MIT license.
    Copyright (C) David Broman. See file LICENSE
+
+   The following file defines the abstract syntax tree and
+   its pretty printing function.
 *)
 
 open Ustring.Op
 open Msg
+open Printf
 
+type const =
+(* Primitive data types *)
+ | CTrue | CFalse
+ | CInt of int
+(* Binary operators *)
+ | CAdd  | CSub    | CMul   | CDiv     | CMod
+ | CLess | CLessEq | CGreat | CGreatEq
+ | CEq   | CNotEq
+(* Unary operators *)
+ | CNot  | COrL  | CAndL
+(* Utility functions *)
+ | CPrint
 
-type bop =
-| BopAdd  | BopSub    | BopMul   | BopDiv     | BopMod
-| BopLess | BopLessEq | BopGreat | BopGreatEq
-| BopEq   | BopNotEq
-
-type uop =
-| UopNot  | UopLogOr  | UopLogAnd
-
+(* If a variable is declared as const or as a mutable variable *)
+type isconst = bool
 
 type tm =
 (* Statements *)
-| TmVarDef      of info * ustring * tm
-| TmWhile       of info * tm * tm
-| TmIf          of info * tm * tm * tm option
-| TmAssign      of info * ustring * tm
-| TmRet         of info * tm
-| TmPrint       of info * tm
+ | TmDef         of info * isconst * ustring * tm
+ | TmWhile       of info * tm * tm
+ | TmIf          of info * tm * tm * tm option
+ | TmAssign      of info * ustring * tm
+ | TmRet         of info * tm
 (* Expressions *)
-| TmVar         of info * ustring
-| TmBinop       of info * bop * tm * tm
-| TmUnop        of info * uop * tm
-| TmInt         of info * int
-| TmBool        of info * bool
-| TmFunc        of info * ustring list * tm
-| TmCall        of info * tm * tm list
+ | TmVar         of info * isconst * ustring
+ | TmConst       of info * const
+ | TmFunc        of info * ustring list * tm
+ | TmCall        of info * tm * tm list
 (* Other *)
-| TmScope       of info * tm list
-
-
+ | TmScope       of info * tm list
 
 
 (* Returns the info field from a term *)
 let tm_info t =
   match t with
   (* Statements *)
-  | TmVarDef (fi,_,_) -> fi
+  | TmDef (fi,_,_,_) -> fi
   | TmWhile(fi,_,_) -> fi
   | TmIf(fi,_,_,_) -> fi
   | TmAssign(fi,_,_) -> fi
   | TmRet(fi,_) -> fi
-  | TmPrint(fi,_) -> fi
   (* Expressions *)
-  | TmVar(fi,_) -> fi
-  | TmBinop(fi,_,_,_) -> fi
-  | TmUnop(fi,_,_) -> fi
-  | TmInt(fi,_) -> fi
-  | TmBool(fi,_) -> fi
+  | TmVar(fi,_,_) -> fi
+  | TmConst(fi,_) -> fi
   | TmFunc(fi,_,_) -> fi
   | TmCall(fi,_,_) -> fi
   (* Other *)
   | TmScope(fi,_) -> fi
 
 
-type 'a tokendata = {i:info; v:'a}
+(* Kind of pretty printing *)
+type print_type =
+  | PrnNormal (* Pretty printing for standard javascriptish *)
+  | PrnWeb    (* Pretty printing for web browsers *)
+  | PrnNode   (* Pretty printing for Node.js *)
+
+
+(* Pretty print a constant value *)
+let pprint_const c ptype =
+(match c with
+(* Primitive data types *)
+ | CTrue -> "true"
+ | CFalse -> "false"
+ | CInt(i) -> sprintf "%d" i
+(* Binary operators *)
+ | CAdd -> "+"
+ | CSub -> "-"
+ | CMul -> "*"
+ | CDiv -> "/"
+ | CMod -> "%"
+ | CLess -> "<"
+ | CLessEq -> "<="
+ | CGreat -> ">"
+ | CGreatEq -> ">="
+ | CEq -> "=="
+ | CNotEq -> "!="
+(* Unary operators *)
+ | CNot -> "!"
+ | COrL -> "||"
+ | CAndL -> "&&"
+(* Utility functions *)
+ | CPrint ->
+   (match ptype with
+   | PrnNormal -> "print"
+   | PrnWeb -> "document.write"
+   | PrnNode -> "console.log")
+)|> us
+
 
 
 (* Pretty print a term. *)
-let pprint tm =
+let pprint_general tm ptype indent =
   match tm with
-  | TmVarDef(fi,s,t1) -> us""
+  | TmDef(fi,isconst,s,t1) -> us""
   | TmWhile(fi,t1,t2) -> us""
   | TmIf(fi,t1,tt,tfop) -> us""
   | TmAssign(fi,s,t1) -> us""
   | TmRet(fi,t1) -> us""
-  | TmPrint(fi,t1) -> us""
-  | TmVar(fi,s) -> us""
-  | TmBinop(fi,bop,t1,t2) -> us""
-  | TmUnop(fi,uop,t1) -> us""
-  | TmInt(fi,i) -> us""
-  | TmBool(fi,b) -> us(if b then "true" else "false")
+  | TmVar(fi,isconst,s) -> us""
+  | TmConst(fi,c) -> pprint_const c ptype
   | TmFunc(fi,slst,t1) -> us""
   | TmCall(fi,t1,tlst) -> us""
   | TmScope(fi,tlst) -> us""
+
+
+(* Short cut for printing out normal *)
+let pprint tm = pprint_general tm PrnNormal 0
+
+
+(* Info type used for pretty printing error messages *)
+type 'a tokendata = {i:info; v:'a}

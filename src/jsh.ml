@@ -1,6 +1,8 @@
 (*
    Javascriptish is licensed under the MIT license.
    Copyright (C) David Broman. See file LICENSE
+
+   The main file for the JavaScriptish compiler/interpreter.
 *)
 
 
@@ -9,9 +11,7 @@ open Ustring.Op
 open Printf
 open Ast
 open Msg
-
-
-
+open Analysis
 
 (* Different tasks for the program *)
 type prog_task = ProgRun | ProgPrint | ProgAnalyze
@@ -26,7 +26,7 @@ let progstart task filename  =
     let ast = fs1 |> Ustring.lexing_from_channel |> Parser.main Lexer.main in
     match task with
     | ProgPrint -> uprint_endline (pprint ast)
-    | ProgAnalyze -> failwith "TODO"
+    | ProgAnalyze -> analyze ast
     | ProgRun -> failwith "TODO"
 
     with
