@@ -9,6 +9,7 @@
   open Ustring.Op
   open Msg
   open Ast
+  open Printf
 
   (** Create a new info, taking left and right part *)
   let mkinfo fi1 fi2 =
@@ -87,8 +88,8 @@
 %%
 
 main:
- | expr_seq
-    { $1 }
+ | exprseq
+    { TmScope(NoInfo,$1) }
 
 exprseq:
  |  {[]}

@@ -101,22 +101,29 @@ let pprint_const c ptype =
 
 
 (* Pretty print a term. *)
-let pprint_general tm ptype indent =
-  match tm with
-  | TmDef(fi,isconst,s,t1) -> us""
-  | TmWhile(fi,t1,t2) -> us""
-  | TmIf(fi,t1,tt,tfop) -> us""
-  | TmAssign(fi,s,t1) -> us""
-  | TmRet(fi,t1) -> us""
-  | TmVar(fi,isconst,s) -> us""
-  | TmConst(fi,c) -> pprint_const c ptype
-  | TmFunc(fi,slst,t1) -> us""
-  | TmCall(fi,t1,tlst) -> us""
-  | TmScope(fi,tlst) -> us""
+let pprint_general ptype n tm  =
+  let rec mkspace n = if n = 0 then us"" else mkspace n ^. us" " in
+  let tabsize = 4 in
+  let rec pp n stmt tm  =
+    (if stmt then mkspace (tabsize*n) else us"") ^.
+    (match tm with
+    | TmDef(fi,isconst,s,t1) -> us""
+    | TmWhile(fi,t1,t2) -> us""
+    | TmIf(fi,t1,tt,tfop) -> us""
+    | TmAssign(fi,s,t1) -> us""
+    | TmRet(fi,t1) -> us""
+    | TmVar(fi,isconst,s) -> us""
+    | TmConst(fi,c) -> pprint_const c ptype ^. if stmt then us"\n" else us""
+    | TmFunc(fi,slst,t1) -> us""
+    | TmCall(fi,t1,tlst) -> us""
+    | TmScope(fi,tlst) ->
+       Ustring.concat (us"") (List.map (pp n true) tlst))
+  in
+    pp n false tm
 
 
 (* Short cut for printing out normal *)
-let pprint tm = pprint_general tm PrnNormal 0
+let pprint tm = pprint_general PrnNormal 0 tm
 
 
 (* Info type used for pretty printing error messages *)
