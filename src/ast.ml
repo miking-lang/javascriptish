@@ -112,12 +112,14 @@ and pprint_general prec ptype n tm  =
   let rec pp prec n stmt tm  =
     (if stmt then mkspace (tabsize*n) else us"") ^.
     (match tm with
-    | TmDef(fi,isconst,s,t1) -> us""
+    | TmDef(fi,isconst,s,t1) ->
+        if isconst then us"const " else us"var " ^.
+        s ^. us" = " ^. pp prec n stmt t1
     | TmWhile(fi,t1,t2) -> us""
     | TmIf(fi,t1,tt,tfop) -> us""
     | TmAssign(fi,s,t1) -> us""
     | TmRet(fi,t1) -> us""
-    | TmVar(fi,isconst,s) -> us""
+    | TmVar(fi,isconst,s) -> s
     | TmConst(fi,c) -> pprint_const prec ptype n c []
     | TmFunc(fi,slst,t1) -> us""
     | TmCall(fi,t1,tlst) ->

@@ -56,6 +56,7 @@
 %token <unit Ast.tokendata> NOT           /* "!"   */
 %token <unit Ast.tokendata> OR            /* "||" */
 %token <unit Ast.tokendata> AND           /* "&&" */
+%token <unit Ast.tokendata> ASSIGN        /* "=" */
 
 
 /* Symbolic Tokens */
@@ -90,13 +91,20 @@
 %%
 
 main:
- | exprseq
+ | seq
     { TmScope(NoInfo,$1) }
 
-exprseq:
+seq:
  |  {[]}
- |  expr exprseq
+ |  stmt seq
       {$1::$2}
+
+stmt:
+ | expr
+     { $1 }
+ | VAR IDENT ASSIGN expr
+     { let fi = mkinfo $1.i $2.i in
+       TmDef(fi,false,$2.v,$4) }
 
 expr:
  | atom
@@ -147,7 +155,7 @@ atom:
  | UINT
      { TmConst($1.i,CInt($1.v)) }
  | IDENT
-     { TmConst(NoInfo,CTrue) }
+     { TmVar($1.i,false,$1.v) }
  | LPAREN expr RPAREN
      { $2 }
 

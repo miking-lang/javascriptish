@@ -23,3 +23,6 @@ true || false && true
 (true || !(false && false)) && true && (true || !false)
 5 - 7 * 8 + 2 / 5 - 9
 ((5 - 7) * 8 + 2) / (5 - 9)
+true || !false || 8 <= 7
+foo
+var x = 7 + 10

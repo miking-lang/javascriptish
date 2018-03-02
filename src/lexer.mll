@@ -41,6 +41,7 @@ let reserved_strings = [
   ("!",             fun(i) -> Parser.NOT{i=i;v=()});
   ("||",            fun(i) -> Parser.OR{i=i;v=()});
   ("&&",            fun(i) -> Parser.AND{i=i;v=()});
+  ("=",             fun(i) -> Parser.ASSIGN{i=i;v=()});
 
   (* Symbolic Tokens *)
   ("(",             fun(i) -> Parser.LPAREN{i=i;v=()});
@@ -140,7 +141,7 @@ let nondigit = ('_' | us_letter)
 let ident = (nondigit (digit | nondigit)*)
 let symtok =  "="  | "+" |  "-" | "*"  | "/" | "%"  | "<"  | "<=" | ">" | ">=" | "==" |
               "!=" | "!" | "&&" | "||" | "++"| "("  | ")"  | "["  | "]" | "{"  | "}"  |
-              "::" | ":" | ","  | "."  | "|" | "->" | "=>"
+              "::" | ":" | ","  | "."  | "|" | "->" | "=>" | "="
 
 let line_comment = "//" [^ '\013' '\010']*
 let unsigned_integer = digit+
