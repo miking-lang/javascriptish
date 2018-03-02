@@ -34,3 +34,14 @@ while(x < 7){
     var x = 2
   }
 }
+if(z && true){
+  if(x < 1){
+    y = 1
+    x = x + 1
+  }
+  else{
+    if(true){
+      z = 5
+    }
+  }
+}

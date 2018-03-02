@@ -86,6 +86,7 @@
 
 
 
+
 %type <Ast.tm> main
 
 %%
@@ -112,6 +113,16 @@ stmt:
      { let fi1 = mkinfo $1.i $4.i in
        let fi2 = mkinfo $5.i $7.i in
        TmWhile(fi1,$3,TmScope(fi2,$6)) }
+ | IF LPAREN expr RPAREN LCURLY seq RCURLY
+     { let fi1 = mkinfo $1.i $4.i in
+       let fi2 = mkinfo $5.i $7.i in
+       TmIf(fi1,$3,TmScope(fi2,$6),None) }
+ | IF LPAREN expr RPAREN LCURLY seq RCURLY ELSE LCURLY seq RCURLY
+     { let fi1 = mkinfo $1.i $4.i in
+       let fi2 = mkinfo $5.i $7.i in
+       let fi3 = mkinfo $9.i $11.i in
+       TmIf(fi1,$3,TmScope(fi2,$6),Some(TmScope(fi3,$10))) }
+
 
 expr:
  | atom

@@ -118,7 +118,14 @@ and pprint_general prec ptype n tm  =
     | TmWhile(fi,t1,t2) ->
         us"while(" ^. pp prec n false t1 ^. us"){\n"  ^.
           pp prec (n+1) false t2 ^. mkspace (tabsize*n) ^. us"}"
-    | TmIf(fi,t1,tt,tfop) -> us""
+    | TmIf(fi,t1,tt,tfop) ->
+        us"if(" ^. pp prec n false t1 ^. us"){\n"  ^.
+        pp prec (n+1) false tt ^. mkspace (tabsize*n) ^. us"}" ^.
+        (match tfop with
+         | Some(tf) -> us"\n" ^. mkspace (tabsize*n) ^.
+                       us"else{\n" ^. pp prec (n+1) false tf ^.
+                       mkspace (tabsize*n) ^. us"}"
+         | None -> us"")
     | TmAssign(fi,s,t1) -> s ^. us" = " ^. pp prec n false t1
     | TmRet(fi,t1) -> us""
     | TmVar(fi,isconst,s) -> s
@@ -127,7 +134,7 @@ and pprint_general prec ptype n tm  =
     | TmCall(fi,t1,tlst) ->
       (match t1 with
       | TmConst(fi,c) -> pprint_const prec ptype n c tlst
-      | _ -> failwith "TODO")
+      | t -> failwith "TODO")
     | TmScope(fi,tlst) ->
       Ustring.concat (us"") (List.map (pp prec n true) tlst)
     ) ^. if stmt then us"\n" else us""
