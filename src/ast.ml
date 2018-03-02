@@ -18,8 +18,9 @@ type const =
  | CAdd  | CSub    | CMul   | CDiv     | CMod
  | CLess | CLessEq | CGreat | CGreatEq
  | CEq   | CNotEq
+ | COrL  | CAndL
 (* Unary operators *)
- | CNot  | COrL  | CAndL
+ | CNeg  | CNot
 (* Utility functions *)
  | CPrint
 
@@ -68,43 +69,47 @@ type print_type =
 
 
 (* Pretty print a constant value *)
-let pprint_const c ptype =
-(match c with
-(* Primitive data types *)
- | CTrue -> "true"
- | CFalse -> "false"
- | CInt(i) -> sprintf "%d" i
-(* Binary operators *)
- | CAdd -> "+"
- | CSub -> "-"
- | CMul -> "*"
- | CDiv -> "/"
- | CMod -> "%"
- | CLess -> "<"
- | CLessEq -> "<="
- | CGreat -> ">"
- | CGreatEq -> ">="
- | CEq -> "=="
- | CNotEq -> "!="
-(* Unary operators *)
- | CNot -> "!"
- | COrL -> "||"
- | CAndL -> "&&"
-(* Utility functions *)
- | CPrint ->
-   (match ptype with
-   | PrnNormal -> "print"
-   | PrnWeb -> "document.write"
-   | PrnNode -> "console.log")
-)|> us
+let rec pprint_const prec ptype n c args =
+  let ppargs prec = Ustring.concat (us"") (List.map (pprint_general prec ptype n) args) in
+  let ppa prec k = pprint_general prec ptype n (List.nth args k) in
+  let precparan cprec ts = if prec > cprec then us"(" ^. ts ^. us")" else ts in
+  (match c with
+  (* Primitive data types *)
+   | CTrue -> us"true"
+   | CFalse -> us"false"
+   | CInt(i) -> us(sprintf "%d" i)
+  (* Binary operators *)
+   | CAdd -> precparan 8 (ppa 8 0 ^. us" + " ^. ppa 8 1)
+   | CSub -> precparan 8 (ppa 8 0 ^. us" - " ^. ppa 8 1)
+   | CMul -> precparan 9 (ppa 9 0 ^. us" * " ^. ppa 9 1)
+   | CDiv -> precparan 9 (ppa 9 0 ^. us" / " ^. ppa 9 1)
+   | CMod -> precparan 9 (ppa 9 0 ^. us" % " ^. ppa 9 1)
+   | CLess -> precparan 6 (ppa 6 0 ^. us" < " ^. ppa 6 1)
+   | CLessEq -> precparan 6 (ppa 6 0 ^. us" <= " ^. ppa 6 1)
+   | CGreat -> precparan 6 (ppa 6 0 ^. us" > " ^. ppa 6 1)
+   | CGreatEq -> precparan 6 (ppa 6 0 ^. us" >= " ^. ppa 6 1)
+   | CEq -> precparan 6 (ppa 6 0 ^. us" == " ^. ppa 6 1)
+   | CNotEq -> precparan 6 (ppa 6 0 ^. us" != " ^. ppa 6 1)
+   | COrL -> precparan 2 (ppa 2 0 ^. us" || " ^. ppa 2 1)
+   | CAndL -> precparan 3 (ppa 3 0 ^. us" && " ^. ppa 3 1)
+  (* Unary operators *)
+   | CNeg -> precparan 12 (us"-" ^. ppargs 12)
+   | CNot -> precparan 4 (us"!" ^. ppargs 4)
+  (* Utility functions *)
+   | CPrint ->
+     (match ptype with
+     | PrnNormal -> us"print"
+     | PrnWeb -> us"document.write"
+     | PrnNode -> us"console.log"))
+
 
 
 
 (* Pretty print a term. *)
-let pprint_general ptype n tm  =
+and pprint_general prec ptype n tm  =
   let rec mkspace n = if n = 0 then us"" else mkspace n ^. us" " in
   let tabsize = 4 in
-  let rec pp n stmt tm  =
+  let rec pp prec n stmt tm  =
     (if stmt then mkspace (tabsize*n) else us"") ^.
     (match tm with
     | TmDef(fi,isconst,s,t1) -> us""
@@ -113,17 +118,21 @@ let pprint_general ptype n tm  =
     | TmAssign(fi,s,t1) -> us""
     | TmRet(fi,t1) -> us""
     | TmVar(fi,isconst,s) -> us""
-    | TmConst(fi,c) -> pprint_const c ptype ^. if stmt then us"\n" else us""
+    | TmConst(fi,c) -> pprint_const prec ptype n c []
     | TmFunc(fi,slst,t1) -> us""
-    | TmCall(fi,t1,tlst) -> us""
+    | TmCall(fi,t1,tlst) ->
+      (match t1 with
+      | TmConst(fi,c) -> pprint_const prec ptype n c tlst
+      | _ -> failwith "TODO")
     | TmScope(fi,tlst) ->
-       Ustring.concat (us"") (List.map (pp n true) tlst))
+      Ustring.concat (us"") (List.map (pp prec n true) tlst)
+    ) ^. if stmt then us"\n" else us""
   in
-    pp n false tm
+    pp prec n false tm
 
 
 (* Short cut for printing out normal *)
-let pprint tm = pprint_general PrnNormal 0 tm
+let pprint tm = pprint_general 0 PrnNormal 0 tm
 
 
 (* Info type used for pretty printing error messages *)

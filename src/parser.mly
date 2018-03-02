@@ -76,10 +76,12 @@
 
 %left OR  /*prec 2*/
 %left AND  /*prec 3*/
+%left NEG  /*prec 4*/
 %left LESS LESSEQUAL GREAT GREATEQUAL EQUAL NOTEQUAL /*prec 6*/
 %nonassoc NOT /*prec8 */
 %left ADD SUB /*prec 8*/
 %left MUL DIV MOD /*prec 9*/
+%nonassoc UNARYMINUS /*prec 12*/
 
 
 
@@ -96,13 +98,58 @@ exprseq:
  |  expr exprseq
       {$1::$2}
 
-
 expr:
+ | atom
+     { $1 }
+ | expr ADD expr
+     { TmCall($2.i,TmConst($2.i,CAdd),[$1;$3]) }
+
+ | expr SUB expr
+      { TmCall($2.i,TmConst($2.i,CSub),[$1;$3]) }
+ | expr MUL expr
+     { TmCall($2.i,TmConst($2.i,CMul),[$1;$3]) }
+ | expr DIV expr
+     { TmCall($2.i,TmConst($2.i,CDiv),[$1;$3]) }
+ | expr LESS expr
+     { TmCall($2.i,TmConst($2.i,CLess),[$1;$3]) }
+ | expr LESSEQUAL expr
+     { TmCall($2.i,TmConst($2.i,CLessEq),[$1;$3]) }
+ | expr GREAT expr
+     { TmCall($2.i,TmConst($2.i,CGreat),[$1;$3]) }
+ | expr GREATEQUAL expr
+     { TmCall($2.i,TmConst($2.i,CGreatEq),[$1;$3]) }
+ | expr EQUAL expr
+     { TmCall($2.i,TmConst($2.i,CEq),[$1;$3]) }
+ | expr NOTEQUAL expr
+     { TmCall($2.i,TmConst($2.i,CNotEq),[$1;$3]) }
+ | NOT expr
+     { TmCall($1.i,TmConst($1.i,CNot),[$2]) }
+ | expr OR expr
+     { TmCall($2.i,TmConst($2.i,COrL),[$1;$3]) }
+ | expr AND expr
+     { TmCall($2.i,TmConst($2.i,CAndL),[$1;$3]) }
+
+
+
+/* TODO: Fix unary minus
+ | SUB expr  %prec UNARYMINUS
+     { let fi = mkinfo $1.i (tm_info $2) in
+       TmCall(fi,TmConst(fi,CNeg),[$2]) }
+*/
+
+
+
+atom:
  | TRUE
      { TmConst($1.i,CTrue) }
  | FALSE
      { TmConst($1.i,CFalse) }
-
+ | UINT
+     { TmConst($1.i,CInt($1.v)) }
+ | IDENT
+     { TmConst(NoInfo,CTrue) }
+ | LPAREN expr RPAREN
+     { $2 }
 
 
 /* ********************************* MCORE **************************************** */
