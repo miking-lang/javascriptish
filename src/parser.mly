@@ -103,8 +103,15 @@ stmt:
  | expr
      { $1 }
  | VAR IDENT ASSIGN expr
-     { let fi = mkinfo $1.i $2.i in
+     { let fi = mkinfo $1.i $3.i in
        TmDef(fi,false,$2.v,$4) }
+ | IDENT ASSIGN expr
+     { let fi = mkinfo $1.i $2.i in
+       TmAssign(fi,$1.v,$3) }
+ | WHILE LPAREN expr RPAREN LCURLY seq RCURLY
+     { let fi1 = mkinfo $1.i $4.i in
+       let fi2 = mkinfo $5.i $7.i in
+       TmWhile(fi1,$3,TmScope(fi2,$6)) }
 
 expr:
  | atom

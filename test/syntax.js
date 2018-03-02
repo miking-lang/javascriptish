@@ -26,3 +26,11 @@ true || false && true
 true || !false || 8 <= 7
 foo
 var x = 7 + 10
+i = i + 1
+while(x < 7){
+  var y = 5
+  while(true){
+    i = i + 1
+    var x = 2
+  }
+}

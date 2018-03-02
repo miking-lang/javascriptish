@@ -107,17 +107,19 @@ let rec pprint_const prec ptype n c args =
 
 (* Pretty print a term. *)
 and pprint_general prec ptype n tm  =
-  let rec mkspace n = if n = 0 then us"" else mkspace n ^. us" " in
-  let tabsize = 4 in
+  let rec mkspace n = if n = 0 then us"" else mkspace (n-1) ^. us" " in
+  let tabsize = 2 in
   let rec pp prec n stmt tm  =
     (if stmt then mkspace (tabsize*n) else us"") ^.
     (match tm with
     | TmDef(fi,isconst,s,t1) ->
         if isconst then us"const " else us"var " ^.
-        s ^. us" = " ^. pp prec n stmt t1
-    | TmWhile(fi,t1,t2) -> us""
+        s ^. us" = " ^. pp prec n false t1
+    | TmWhile(fi,t1,t2) ->
+        us"while(" ^. pp prec n false t1 ^. us"){\n"  ^.
+          pp prec (n+1) false t2 ^. mkspace (tabsize*n) ^. us"}"
     | TmIf(fi,t1,tt,tfop) -> us""
-    | TmAssign(fi,s,t1) -> us""
+    | TmAssign(fi,s,t1) -> s ^. us" = " ^. pp prec n false t1
     | TmRet(fi,t1) -> us""
     | TmVar(fi,isconst,s) -> s
     | TmConst(fi,c) -> pprint_const prec ptype n c []
