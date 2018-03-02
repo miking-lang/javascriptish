@@ -80,7 +80,7 @@ let rec pprint_const prec ptype n c args =
    | CInt(i) -> us(sprintf "%d" i)
   (* Binary operators *)
    | CAdd -> precparan 8 (ppa 8 0 ^. us" + " ^. ppa 8 1)
-   | CSub -> precparan 8 (ppa 8 0 ^. us" - " ^. ppa 8 1)
+   | CSub -> precparan 8 (ppa 8 0 ^. us" - " ^. ppa 9 1)
    | CMul -> precparan 9 (ppa 9 0 ^. us" * " ^. ppa 9 1)
    | CDiv -> precparan 9 (ppa 9 0 ^. us" / " ^. ppa 9 1)
    | CMod -> precparan 9 (ppa 9 0 ^. us" % " ^. ppa 9 1)
@@ -134,7 +134,8 @@ and pprint_general prec ptype n tm  =
     | TmCall(fi,t1,tlst) ->
       (match t1 with
       | TmConst(fi,c) -> pprint_const prec ptype n c tlst
-      | t -> failwith "TODO")
+      | t -> pp prec n false t ^. us"(" ^.
+             Ustring.concat (us", ") (List.map (pp prec n false) tlst) ^. us")")
     | TmScope(fi,tlst) ->
       Ustring.concat (us"") (List.map (pp prec n true) tlst)
     ) ^. if stmt then us"\n" else us""

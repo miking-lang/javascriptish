@@ -20,8 +20,6 @@ let reserved_strings = [
   ("if",            fun(i) -> Parser.IF{i=i;v=()});
   ("else",          fun(i) -> Parser.ELSE{i=i;v=()});
   ("return",        fun(i) -> Parser.RETURN{i=i;v=()});
-  ("print",         fun(i) -> Parser.PRINT{i=i;v=()});
-  ("console.log",   fun(i) -> Parser.PRINT{i=i;v=()});
   ("true",          fun(i) -> Parser.TRUE{i=i;v=()});
   ("false",         fun(i) -> Parser.FALSE{i=i;v=()});
 
