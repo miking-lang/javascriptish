@@ -15,7 +15,7 @@ opam install js_of_ocaml
 
 ## Language Overview
 
-## Some desgin decisions
+## Some design decisions
 
 * The language is designed to avoid some common beginner mistakes . Examples:
 
@@ -23,6 +23,20 @@ opam install js_of_ocaml
      It is not possible to have a single statement without defining a scope.
   - Assignments `=` is only allowed as a statement, and not within an expression.
 
+### Missing constructs
+The following JavaScript constructs are still missing
+
+* Classes 
+* Objects
+* Numbers (floating point)
+* Strings  
+* Anonymous functions
+  
+TODOs:
+- Add test script
+- Add run
+- Rename print to node and add description in help
+- Check spelling  
   
 ### Extensions
 Besides the pure subset of JavaScript described above, our plan is to extend Javascriptish with a few more language features. The main purpose of these extensions is to make it easy to demonastrate and teach functional language concepts. This is work in progress. Some of the concepts that are planned are the following:

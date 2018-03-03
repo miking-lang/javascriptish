@@ -15,6 +15,7 @@
 let reserved_strings = [
   (* Keywords *)
   ("var",           fun(i) -> Parser.VAR{i=i;v=()});
+  ("const",         fun(i) -> Parser.CONST{i=i;v=()});
   ("function",      fun(i) -> Parser.FUNCTION{i=i;v=()});
   ("while",         fun(i) -> Parser.WHILE{i=i;v=()});
   ("if",            fun(i) -> Parser.IF{i=i;v=()});

@@ -118,8 +118,8 @@ and pprint_general prec ptype n tm  =
           us"function " ^. s ^. us"(" ^.
           Ustring.concat (us", ") params ^. us"){\n" ^.
           pp prec (n+1) false t2 ^. mkspace (tabsize*n) ^. us"}"
-      | _ ->  if isconst then us"const " else us"var " ^.
-              s ^. us" = " ^. pp prec n false t1)
+      | _ ->  (if isconst then us"const " else us"var ") ^.
+               s ^. us" = " ^. pp prec n false t1)
     | TmWhile(fi,t1,t2) ->
         us"while(" ^. pp prec n false t1 ^. us"){\n"  ^.
           pp prec (n+1) false t2 ^. mkspace (tabsize*n) ^. us"}"

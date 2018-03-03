@@ -63,3 +63,4 @@ function f(){
 function g(x,y,z){
   return x
 }
+const x = 4

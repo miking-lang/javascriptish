@@ -30,6 +30,7 @@
 
 /* Keywords */
 %token <unit Ast.tokendata> VAR
+%token <unit Ast.tokendata> CONST
 %token <unit Ast.tokendata> FUNCTION
 %token <unit Ast.tokendata> WHILE
 %token <unit Ast.tokendata> IF
@@ -100,6 +101,9 @@ stmt:
  | VAR IDENT ASSIGN expr
      { let fi = mkinfo $1.i $3.i in
        TmDef(fi,false,$2.v,$4) }
+ | CONST IDENT ASSIGN expr
+     { let fi = mkinfo $1.i $3.i in
+       TmDef(fi,true,$2.v,$4) }
  | IDENT ASSIGN expr
      { let fi = mkinfo $1.i $2.i in
        TmAssign(fi,$1.v,$3) }
