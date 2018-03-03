@@ -113,8 +113,13 @@ and pprint_general prec ptype n tm  =
     (if stmt then mkspace (tabsize*n) else us"") ^.
     (match tm with
     | TmDef(fi,isconst,s,t1) ->
-        if isconst then us"const " else us"var " ^.
-        s ^. us" = " ^. pp prec n false t1
+      (match t1 with
+      | TmFunc(fi2,params,t2) ->
+          us"function " ^. s ^. us"(" ^.
+          Ustring.concat (us", ") params ^. us"){\n" ^.
+          pp prec (n+1) false t2 ^. mkspace (tabsize*n) ^. us"}"
+      | _ ->  if isconst then us"const " else us"var " ^.
+              s ^. us" = " ^. pp prec n false t1)
     | TmWhile(fi,t1,t2) ->
         us"while(" ^. pp prec n false t1 ^. us"){\n"  ^.
           pp prec (n+1) false t2 ^. mkspace (tabsize*n) ^. us"}"
@@ -127,7 +132,7 @@ and pprint_general prec ptype n tm  =
                        mkspace (tabsize*n) ^. us"}"
          | None -> us"")
     | TmAssign(fi,s,t1) -> s ^. us" = " ^. pp prec n false t1
-    | TmRet(fi,t1) -> us""
+    | TmRet(fi,t1) -> us"return " ^. pp prec n false t1
     | TmVar(fi,isconst,s) -> s
     | TmConst(fi,c) -> pprint_const prec ptype n c []
     | TmFunc(fi,slst,t1) -> us""

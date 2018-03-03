@@ -53,3 +53,13 @@ _ = boo()
 print(x, y)
 foo(3 + 1)
 g()
+function foo(x){
+  x = x + 1
+}
+function f(){
+  k = k + 1
+  return k
+}
+function g(x,y,z){
+  return x
+}

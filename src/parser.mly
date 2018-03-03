@@ -119,6 +119,13 @@ stmt:
  | IDENT LPAREN args RPAREN
      { let fi = mkinfo $1.i $4.i in
        TmCall(fi,TmVar($1.i,true,$1.v),$3) }
+ | FUNCTION IDENT LPAREN params RPAREN LCURLY seq RCURLY
+     { let fi1 = mkinfo $1.i $8.i in
+       let fi2 = mkinfo $5.i $8.i in
+       TmDef(fi1,true,$2.v,TmFunc(fi1,$4,TmScope(fi2,$7))) }
+ | RETURN expr
+     { let fi = mkinfo $1.i (tm_info $2) in
+       TmRet(fi,$2) }
 
 
 expr:
@@ -157,6 +164,17 @@ expr:
  | IDENT LPAREN args RPAREN
      { let fi = mkinfo $1.i $4.i in
        TmCall(fi,TmVar($1.i,true,$1.v),$3) }
+
+params:
+ |   {[]}
+ | params_rev
+     { List.rev $1 }
+
+params_rev:
+ | IDENT
+     {[$1.v]}
+ | params_rev COMMA IDENT
+     {$3.v::$1}
 
 args:
  |   {[]}
