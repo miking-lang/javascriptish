@@ -25,9 +25,13 @@ let progstart task filename  =
     Lexer.init (us filename) tablength;
     let ast = fs1 |> Ustring.lexing_from_channel |> Parser.main Lexer.main in
     match task with
-    | ProgPrint -> uprint_endline (pprint ast)
+    | ProgPrint -> uprint_endline (pprintext PrnNode ast)
     | ProgAnalyze -> analyze ast
-    | ProgRun -> failwith "TODO"
+    | ProgRun ->
+        let name = "tempfile.js" in
+        Ustring.write_file name (pprintext PrnNode ast);
+        Sys.command ("node " ^ name) |> ignore;
+        Sys.remove name
 
     with
     | Lexer.Lex_error m ->
@@ -44,7 +48,11 @@ let progstart task filename  =
 
 (* Print out main menu *)
 let menu() =
-  printf "Usage: jsh [print|analyze|run] <file>\n";
+  printf "Javascriptish. By David Broman\n";
+  printf "\nUsage: jsh [run|node|analyze] <jsh file>\n\n";
+  printf "       run  = Parse and execute a jsh file.\n";
+  printf "       node = Generate Node.js compatible code.\n";
+  printf "       analyze = Analyze a jsh file.\n";
   printf "\n"
 
 
@@ -54,13 +62,13 @@ let main =
   (match Array.to_list Sys.argv |> List.tl with
 
   (* Read in a program and print the JavaScript code to the standard output *)
-  | "print"::name::lst -> progstart ProgPrint name
+  | "node"::name::lst -> progstart ProgPrint name
 
   (* Analyze the program, without running it  *)
   | "analyze"::name::lst  ->  progstart ProgAnalyze name
 
   (* Run one program  *)
-  | "run"::name::lst  -> progstart ProgRun name
+  | "run"::name::lst | name::lst  -> progstart ProgRun name
 
   (* Show the menu *)
   | _ -> menu())

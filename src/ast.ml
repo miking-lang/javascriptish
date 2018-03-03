@@ -98,9 +98,9 @@ let rec pprint_const prec ptype n c args =
   (* Utility functions *)
    | CPrint ->
      (match ptype with
-     | PrnNormal -> us"print"
-     | PrnWeb -> us"document.write"
-     | PrnNode -> us"console.log"))
+     | PrnNormal -> us"print(" ^. ppargs 0 ^. us")"
+     | PrnWeb -> us"document.write(" ^. ppargs 0 ^. us")"
+     | PrnNode -> us"console.log(" ^. ppargs 0 ^. us")"))
 
 
 
@@ -117,32 +117,32 @@ and pprint_general prec ptype n tm  =
       | TmFunc(fi2,params,t2) ->
           us"function " ^. s ^. us"(" ^.
           Ustring.concat (us", ") params ^. us"){\n" ^.
-          pp prec (n+1) false t2 ^. mkspace (tabsize*n) ^. us"}"
+          pp 0 (n+1) false t2 ^. mkspace (tabsize*n) ^. us"}"
       | _ ->  (if isconst then us"const " else us"var ") ^.
-               s ^. us" = " ^. pp prec n false t1)
+               s ^. us" = " ^. pp 0 n false t1)
     | TmWhile(fi,t1,t2) ->
-        us"while(" ^. pp prec n false t1 ^. us"){\n"  ^.
-          pp prec (n+1) false t2 ^. mkspace (tabsize*n) ^. us"}"
+        us"while(" ^. pp 0 n false t1 ^. us"){\n"  ^.
+          pp 0 (n+1) false t2 ^. mkspace (tabsize*n) ^. us"}"
     | TmIf(fi,t1,tt,tfop) ->
-        us"if(" ^. pp prec n false t1 ^. us"){\n"  ^.
-        pp prec (n+1) false tt ^. mkspace (tabsize*n) ^. us"}" ^.
+        us"if(" ^. pp 0 n false t1 ^. us"){\n"  ^.
+        pp 0 (n+1) false tt ^. mkspace (tabsize*n) ^. us"}" ^.
         (match tfop with
          | Some(tf) -> us"\n" ^. mkspace (tabsize*n) ^.
-                       us"else{\n" ^. pp prec (n+1) false tf ^.
+                       us"else{\n" ^. pp 0 (n+1) false tf ^.
                        mkspace (tabsize*n) ^. us"}"
          | None -> us"")
-    | TmAssign(fi,s,t1) -> s ^. us" = " ^. pp prec n false t1
-    | TmRet(fi,t1) -> us"return " ^. pp prec n false t1
+    | TmAssign(fi,s,t1) -> s ^. us" = " ^. pp 0 n false t1
+    | TmRet(fi,t1) -> us"return " ^. pp 0 n false t1
     | TmVar(fi,isconst,s) -> s
-    | TmConst(fi,c) -> pprint_const prec ptype n c []
+    | TmConst(fi,c) -> pprint_const 0 ptype n c []
     | TmFunc(fi,slst,t1) -> us""
     | TmCall(fi,t1,tlst) ->
       (match t1 with
-      | TmConst(fi,c) -> pprint_const prec ptype n c tlst
-      | t -> pp prec n false t ^. us"(" ^.
-             Ustring.concat (us", ") (List.map (pp prec n false) tlst) ^. us")")
+      | TmConst(fi,c) -> pprint_const 0 ptype n c tlst
+      | t -> pp 0 n false t ^. us"(" ^.
+             Ustring.concat (us", ") (List.map (pp 0 n false) tlst) ^. us")")
     | TmScope(fi,tlst) ->
-      Ustring.concat (us"") (List.map (pp prec n true) tlst)
+      Ustring.concat (us"") (List.map (pp 0 n true) tlst)
     ) ^. if stmt then us"\n" else us""
   in
     pp prec n false tm
@@ -151,6 +151,9 @@ and pprint_general prec ptype n tm  =
 (* Short cut for printing out normal *)
 let pprint tm = pprint_general 0 PrnNormal 0 tm
 
+(* Short cut for pretty printing, but selection the
+   kind of pretty printing *)
+let pprintext ptype tm = pprint_general 0 ptype 0 tm
 
 (* Info type used for pretty printing error messages *)
 type 'a tokendata = {i:info; v:'a}

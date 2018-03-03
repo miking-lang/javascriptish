@@ -18,6 +18,11 @@
       | (Info(fn,r1,c1,r2,c2), NoInfo) -> Info(fn,r1,c1,r2,c2)
       | (NoInfo, Info(fn,r1,c1,r2,c2)) -> Info(fn,r1,c1,r2,c2)
       | (_,_) -> NoInfo
+
+  let str2tm fi s =
+    match Ustring.to_utf8 s with
+    | "print" -> TmConst(fi,CPrint)
+    | _ -> TmVar(fi,false,s)
 %}
 
 /* Misc tokens */
@@ -122,7 +127,7 @@ stmt:
        TmIf(fi1,$3,TmScope(fi2,$6),Some(TmScope(fi3,$10))) }
  | IDENT LPAREN args RPAREN
      { let fi = mkinfo $1.i $4.i in
-       TmCall(fi,TmVar($1.i,true,$1.v),$3) }
+       TmCall(fi,str2tm $1.i $1.v,$3) }
  | FUNCTION IDENT LPAREN params RPAREN LCURLY seq RCURLY
      { let fi1 = mkinfo $1.i $8.i in
        let fi2 = mkinfo $5.i $8.i in
@@ -167,7 +172,7 @@ expr:
        TmCall(fi,TmConst(fi,CNeg),[$2]) }
  | IDENT LPAREN args RPAREN
      { let fi = mkinfo $1.i $4.i in
-       TmCall(fi,TmVar($1.i,true,$1.v),$3) }
+       TmCall(fi,str2tm $1.i $1.v,$3) }
 
 params:
  |   {[]}
@@ -200,6 +205,6 @@ atom:
  | UINT
      { TmConst($1.i,CInt($1.v)) }
  | IDENT
-     { TmVar($1.i,false,$1.v) }
+     { str2tm $1.i $1.v }
  | LPAREN expr RPAREN
      { $2 }

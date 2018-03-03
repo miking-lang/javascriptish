@@ -9,4 +9,4 @@ function fact(n){
   return res
 }
 
-console.log(fact(5))
+print(fact(5))
