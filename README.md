@@ -6,7 +6,7 @@ programming.
 
 ### Contributors
 
- * [David Broman](, KTH, Sweden
+ * [David Broman](https://people.kth.se/~dbro/), KTH Royal Institute of Technology, Sweden
 
 ## Installation
 
