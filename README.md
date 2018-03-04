@@ -21,9 +21,9 @@ programming.
 
 Go to directory `test`. This folder contains a number of small JavaScriptish files (with ending `.jsh`). If you are in directory `test` and execute the command
 
-`jsh fact-imp.jsh`
+`>> jsh fact-imp.jsh`
 
-file `fact-imp.jsh` is executed. The `.jsh` file File `fact-imp.jsh` contains the following code:
+file `fact-imp.jsh` is executed. File `fact-imp.jsh` contains the following code:
 
 ```javascript
 function fact(n){
@@ -38,12 +38,25 @@ function fact(n){
 print(fact(5))
 ```
 
-The example contains a pure subset of normal JavaScript, with the
+The example uses a pure subset of normal JavaScript, with the
 exception for printing. In JavaScriptish, a call to `print` outputs
 text to the standard output.
 
 
 ## Language Overview
+
+The current version of JavaScriptish is a pure subset of JavaScript,
+which includes the following constructs:
+
+* while loops
+* if statements
+* function declarations
+* return statement
+* booleans and integers
+* variable and constant declarations
+* assignments
+* function calls
+
 
 ### Missing constructs
 The following JavaScript constructs are still missing
@@ -62,7 +75,7 @@ The language is designed to avoid some common beginner mistakes. For instance:
 * `while` loops and `if` statements always need to have scopes defined using `{` and `}`.
      It is not possible to have a single statement without defining a scope.
 
-*  Assignments `=` is only allowed in a statement, and not within an expression.
+*  Assignments `=` are only allowed in a statement, and not within an expression.
 
 
 ### Extensions
