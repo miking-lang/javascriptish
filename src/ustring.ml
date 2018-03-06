@@ -750,4 +750,4 @@ let write_file ?(encode_type=Utf8) fn s =
     | Latin1 -> to_latin1 s
     | _ -> failwith "Encoding not supported."
   in
-  Utils.write_binfile fn data
+  Utils.write_binfile fn (Bytes.of_string data)
