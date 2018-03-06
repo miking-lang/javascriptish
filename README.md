@@ -21,7 +21,7 @@ programming.
 
 Go to directory `test`. This folder contains a number of small JavaScriptish files (with ending `.jsh`). If you are in directory `test` and execute the command
 
-`>> jsh fact-imp.jsh`
+`>> ./jsh fact-imp.jsh`
 
 file `fact-imp.jsh` is executed. File `fact-imp.jsh` contains the following code:
 
