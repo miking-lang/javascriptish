@@ -31,9 +31,16 @@ let rec reduce f lst acc =
 		| [] -> []
 		| x::xs -> append (f x acc) (reduce f xs acc)
 
+(*let rec map f lst = 
+	match lst with 
+		| [] -> []
+		| x::xs -> (f x)::(map f xs)*)
+
+let map f l = List.fold_right (fun x a -> (f x) :: a) l []
+
 (* Function to conduct a list of all variables in an ast *)
 let fetch_variables ast =
-	let rec traverse ast acc =  
+	let rec traverse ast acc = 
 	  match ast with
 		(* Statements *)
 		 | TmDef(_,_,name,tm) -> traverse tm acc
@@ -52,10 +59,40 @@ let fetch_variables ast =
 		 | TmScope(_,tmlist) -> reduce traverse tmlist acc
 	in traverse ast []
 
+let rename_variable ast =
+	let rec traverse ast =  
+	(*uprint_string(us"Traversing:" ^. (pprint ast));*)
+	  match ast with
+		(* Statements *)
+		 | TmDef(fi,isconst,name,tm) -> (
+		 	match tm with 
+		 		| TmFunc(fi2, params, tm2) -> TmDef(fi, isconst, name, TmFunc(fi, params, traverse tm2))
+		 		| TmVar(fi2, isconst2, name) -> TmDef(fi, isconst, name, TmVar(fi2, isconst2, us"vardef"))
+		 		| TmAssign(fi2,name,tm2) -> TmDef(fi, isconst, name, TmAssign(fi2, us"defas", traverse tm2))
+		 		| _ -> TmDef(fi, isconst, us"odeffad", traverse tm))
+		 | TmWhile (fi, tm_head, tm_body) -> TmWhile(fi, traverse tm_head, traverse tm_body)
+		 | TmIf(fi,tm1,tm2,tm3) -> TmIf(fi, traverse tm1, traverse tm2, 
+		 	(match tm3 with 
+		 		| Some(tm) -> Some(traverse tm)
+		 		| None -> tm3 ))
+		 | TmAssign(fi,name,tm) -> TmAssign(fi, us"varis", traverse tm)
+		 | TmRet(fi,tm) -> TmRet(fi, traverse tm)
+		(* Expressions *)
+		 | TmVar(fi,isconst,name) -> TmVar(fi, isconst, us"variabeln")
+		 | TmConst(fi,const) -> TmConst(fi, const)
+		 | TmFunc(fi,const,tm) -> TmFunc(fi, const, traverse tm)
+		 | TmCall(fi,tm,tmlist) -> TmCall(fi, tm, map traverse tmlist)
+		(* Other *)
+		 | TmScope(fi,tmlist) -> TmScope(fi, map traverse tmlist)
+	in traverse ast
+
 (* Our main function, called from jsh.ml when
 	program is ran with argument 'analyze' *)
 
 let analyze ast = 
 	printf "Listing all variables in file: \n";
 	let variables = fetch_variables ast in
-	print_list variables
+	print_list variables;
+	let renamed_tree = rename_variable ast in 
+	printf "Program with renamed variables: \n";
+	uprint_endline (pprint renamed_tree)
