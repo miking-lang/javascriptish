@@ -9,6 +9,7 @@ open Msg
    The main file for performing program analysis.
 *)
 
+(* 	Function to append two lists *)
 let append l1 l2 =
   let rec loop acc l1 l2 =
     match l1, l2 with
@@ -18,14 +19,18 @@ let append l1 l2 =
     in
     loop [] l1 l2
 
+(* 	Function to print a list of ustrings *)
 let print_list lst = 
 	uprint_endline (Ustring.concat (us", ") lst)
 
-let rec traverse_tmlist f tmlist acc = 
-	match tmlist with 
+(* 	A reduce function : apply function f to each element in list
+	and collect in accumulator *)
+let rec reduce f lst acc = 
+	match lst with 
 		| [] -> []
-		| tm::tms -> append (f tm acc) (traverse_tmlist f tms acc)
+		| x::xs -> append (f x acc) (reduce f xs acc)
 
+(* Function to conduct a list of all variables in a ast *)
 let fetch_variables ast =
 	let rec traverse ast acc =  
 	  match ast with
@@ -41,12 +46,14 @@ let fetch_variables ast =
 		 | TmVar(_,_,name) -> name::acc
 		 | TmConst(_,_) -> acc
 		 | TmFunc(_,_,tm) -> traverse tm acc
-		 | TmCall(_,_,tmlist) -> traverse_tmlist traverse tmlist acc
+		 | TmCall(_,_,tmlist) -> reduce traverse tmlist acc
 		(* Other *)
-		 | TmScope(_,tmlist) -> traverse_tmlist traverse tmlist acc
+		 | TmScope(_,tmlist) -> reduce traverse tmlist acc
 	in traverse ast []
 
-
+(* Our main function, called from jsh.ml when
+	program is ran with argument 'analyze' *)
+	
 let analyze ast = 
 	printf "Listing all variables in file: \n";
 	let variables = fetch_variables ast in
