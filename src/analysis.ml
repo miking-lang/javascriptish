@@ -9,11 +9,6 @@ open Msg
    The main file for performing program analysis.
 *)
 
-let rec reduce f tmlist acc =
-	match tmlist with 
-		| [] -> acc
-		| tm::tms -> reduce f tms (f acc tm)
-
 let append l1 l2 =
   let rec loop acc l1 l2 =
     match l1, l2 with
