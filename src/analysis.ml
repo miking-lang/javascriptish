@@ -9,7 +9,7 @@ open Msg
    The main file for performing program analysis.
 *)
 
-(* 	Function to append two lists *)
+(* Function to append two lists *)
 let append l1 l2 =
   let rec loop acc l1 l2 =
     match l1, l2 with
@@ -19,12 +19,12 @@ let append l1 l2 =
     in
     loop [] l1 l2
 
-(* 	Function to print a list of ustrings *)
+(* Function to print a list of ustrings *)
 let print_list lst = 
 	uprint_endline (Ustring.concat (us", ") lst)
 
-(* 	A reduce function : apply function f to each element in list
-	and collect in accumulator *)
+(* A reduce function : apply function f to each element in list
+   and collect in accumulator *)
 let rec reduce f lst acc = 
 	match lst with 
 		| [] -> []
@@ -53,7 +53,7 @@ let fetch_variables ast =
 
 (* Our main function, called from jsh.ml when
 	program is ran with argument 'analyze' *)
-	
+
 let analyze ast = 
 	printf "Listing all variables in file: \n";
 	let variables = fetch_variables ast in
