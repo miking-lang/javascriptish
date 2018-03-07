@@ -5,6 +5,7 @@ open Msg
 (*
    Javascriptish is licensed under the MIT license.
    Copyright (C) David Broman. See file LICENSE
+   This file is created by Johan Myrsmeden. 
 
    The main file for performing program analysis.
 *)
