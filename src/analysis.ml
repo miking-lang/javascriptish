@@ -31,7 +31,7 @@ let rec reduce f lst acc =
 		| [] -> []
 		| x::xs -> append (f x acc) (reduce f xs acc)
 
-(* Function to conduct a list of all variables in a ast *)
+(* Function to conduct a list of all variables in an ast *)
 let fetch_variables ast =
 	let rec traverse ast acc =  
 	  match ast with
