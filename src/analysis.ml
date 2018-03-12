@@ -37,10 +37,12 @@ let rec reduce f lst acc =
 		| x::xs -> (f x)::(map f xs)*)
 
 let map f l = List.fold_right (fun x a -> (f x) :: a) l []
+let map_two_args f l y = List.fold_right (fun x a -> (f x y) :: a) l []
 
 (* Function to conduct a list of all variables in an ast *)
 let fetch_variables ast =
 	let rec traverse ast acc = 
+	uprint_endline (pprint ast);
 	  match ast with
 		(* Statements *)
 		 | TmDef(_,_,name,tm) -> traverse tm acc
@@ -59,6 +61,7 @@ let fetch_variables ast =
 		 | TmScope(_,tmlist) -> reduce traverse tmlist acc
 	in traverse ast []
 
+(* Function to rename some variables, only to practice transformation of the AST *)
 let rename_variable ast =
 	let rec traverse ast =  
 	(*uprint_string(us"Traversing:" ^. (pprint ast));*)
@@ -67,7 +70,7 @@ let rename_variable ast =
 		 | TmDef(fi,isconst,name,tm) -> (
 		 	match tm with 
 		 		| TmFunc(fi2, params, tm2) -> TmDef(fi, isconst, name, TmFunc(fi, params, traverse tm2))
-		 		| TmVar(fi2, isconst2, name) -> TmDef(fi, isconst, name, TmVar(fi2, isconst2, us"vardef"))
+		 		| TmVar(fi2, isconst2, name2) -> TmDef(fi, isconst, name, TmVar(fi2, isconst2, us"vardef"))
 		 		| TmAssign(fi2,name,tm2) -> TmDef(fi, isconst, name, TmAssign(fi2, us"defas", traverse tm2))
 		 		| _ -> TmDef(fi, isconst, us"odeffad", traverse tm))
 		 | TmWhile (fi, tm_head, tm_body) -> TmWhile(fi, traverse tm_head, traverse tm_body)
@@ -86,6 +89,51 @@ let rename_variable ast =
 		 | TmScope(fi,tmlist) -> TmScope(fi, map traverse tmlist)
 	in traverse ast
 
+let replace_in_list lst name_to_replace new_name = 
+	let replace x a = 
+		(if (Ustring.equal x name_to_replace) then new_name else x) :: a
+	in map replace lst
+
+let rename_in_scope ast name_to_replace new_name = 
+	let rec traverse ast = 
+		uprint_endline (pprint ast);
+		match ast with 
+		(* Statements *)
+		 | TmDef(fi,isconst,name,tm) -> uprint_endline (us"Def av " ^. name); 
+		 	(match tm with 
+		 		| TmFunc(fi2, const, tm2) -> 
+		 		print_string "Def is func";
+		 		uprint_endline(pprint tm2);
+		 			if Ustring.equal name name_to_replace then
+		 				TmDef(fi, isconst, new_name, traverse tm)
+		 			else
+		 				TmDef(fi, isconst, name, traverse tm)
+		 		| _ -> TmDef(fi, isconst, name, traverse tm))
+		 | TmWhile (fi, tm_head, tm_body) -> TmWhile(fi, traverse tm_head, traverse tm_body)
+		 | TmIf(fi,tm1,tm2,tm3) -> TmIf(fi, traverse tm1, traverse tm2, 
+		 	(match tm3 with 
+		 		| Some(tm) -> Some(traverse tm)
+		 		| None -> tm3 ))
+		 | TmAssign(fi,name,tm) -> print_endline "Assign";
+		 	if Ustring.equal name name_to_replace then
+		 		TmAssign(fi, new_name, traverse tm)
+		 	else
+		 		TmAssign(fi, name, traverse tm)
+		 | TmRet(fi,tm) -> print_endline "Ret"; TmRet(fi, traverse tm)
+		(* Expressions *)
+		 | TmVar(fi,isconst,name) -> 
+		 	print_string "-Var";
+		 	if Ustring.equal name name_to_replace then
+		 		TmVar(fi, isconst, new_name)
+		 	else
+		 		TmVar(fi, isconst, name)
+		 | TmConst(fi,const) -> print_endline "Const"; TmConst(fi, const)
+		 | TmFunc(fi,params,tm) -> print_string "Params:"; print_list params; TmFunc(fi, params, traverse tm)
+		 | TmCall(fi,tm,tmlist) -> TmCall(fi, tm, map traverse tmlist)
+		(* Other *)
+		 | TmScope(fi,tmlist) -> print_endline "Scope"; TmScope(fi, map traverse tmlist)
+	in traverse ast
+
 (* Our main function, called from jsh.ml when
 	program is ran with argument 'analyze' *)
 
@@ -93,6 +141,6 @@ let analyze ast =
 	printf "Listing all variables in file: \n";
 	let variables = fetch_variables ast in
 	print_list variables;
-	let renamed_tree = rename_variable ast in 
+	let renamed_tree = rename_in_scope ast (us"x") (us"mitt_x") in 
 	printf "Program with renamed variables: \n";
 	uprint_endline (pprint renamed_tree)
