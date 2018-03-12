@@ -29,15 +29,23 @@ let print_list lst =
 let rec reduce f lst acc = 
 	match lst with 
 		| [] -> []
-		| x::xs -> append (f x acc) (reduce f xs acc)
+		| x::xs -> (print_string ("Reducing, acc length is: " ^ (string_of_int (List.length acc)))); append (f x acc) (reduce f xs acc)
 
-(*let rec map f lst = 
+(* A function to loop over elements in lst 
+   calling function f with accumulator acc *)
+let rec loop f lst acc = 
 	match lst with 
-		| [] -> []
-		| x::xs -> (f x)::(map f xs)*)
+		| [] -> acc
+		| x::xs -> loop f xs (f x acc)
 
 let map f l = List.fold_right (fun x a -> (f x) :: a) l []
 let map_two_args f l y = List.fold_right (fun x a -> (f x y) :: a) l []
+
+(* Does item exists in lst? *)
+let rec exists item lst = 
+	match lst with 
+		| [] -> false 
+		| x::xs -> if Ustring.equal x item then true else (exists item xs)
 
 (* Function to conduct a list of all variables in an ast *)
 let fetch_variables ast =
@@ -59,6 +67,28 @@ let fetch_variables ast =
 		 | TmCall(_,_,tmlist) -> reduce traverse tmlist acc
 		(* Other *)
 		 | TmScope(_,tmlist) -> reduce traverse tmlist acc
+	in traverse ast []
+
+(* Fetch all variables until new scope is reached *)
+let fetch_variables_scope ast =
+	let rec traverse ast acc = 
+	uprint_endline (pprint ast);
+	  match ast with
+		(* Statements *)
+		 | TmDef(_,isconst,name,tm) -> traverse tm (if isconst then acc else (name::acc))
+		 | TmWhile (_, tm_head, tm_body) -> traverse tm_head (traverse tm_body acc)
+		 | TmIf(_,_,tm2,tm3) -> append (traverse tm2 acc) (match tm3 with 
+		 	| Some(tm) -> traverse tm acc 
+		 	| None -> acc )
+		 | TmAssign(_,name,tm) -> traverse tm (name::acc)
+		 | TmRet(_,_) -> acc
+		(* Expressions *)
+		 | TmVar(_,_,name) -> name::acc
+		 | TmConst(_,_) -> acc
+		 | TmFunc(_,_,tm) -> traverse tm acc
+		 | TmCall(_,_,tmlist) -> reduce traverse tmlist acc
+		(* Other *)
+		 | TmScope(_,tmlist) -> acc
 	in traverse ast []
 
 (* Function to rename some variables, only to practice transformation of the AST *)
@@ -134,13 +164,44 @@ let rename_in_scope ast name_to_replace new_name =
 		 | TmScope(fi,tmlist) -> print_endline "Scope"; TmScope(fi, map traverse tmlist)
 	in traverse ast
 
+let analyze_scope ast = 
+	let rec traverse ast env = 
+		match ast with 
+		(* Statements *)
+		 | TmDef(fi,isconst,name,tm) ->
+		 	(match tm with 
+		 		| TmFunc(fi2, const, tm2) -> traverse tm env
+	 			| TmVar(fi2, isconst2, name2) -> traverse tm (name::env)
+		 		| TmAssign(fi2, name2, tm2) -> traverse tm (name::env)
+		 		| TmConst(fi2, const2) -> traverse tm (if isconst then env else (name::env))
+		 		| _ -> traverse tm (name::env))
+		 | TmWhile (fi, tm_head, tm_body) -> traverse tm_body env
+		 | TmIf(fi,tm1,tm2,tm3) -> append (traverse tm2 env) (match tm3 with 
+		 	| Some(tm) -> traverse tm env 
+		 	| None -> env )
+		 | TmAssign(fi,name,tm) -> traverse tm env
+		 | TmRet(fi,tm) -> traverse tm env
+		(* Expressions *)
+		 | TmVar(fi,isconst,name) -> 
+		 	(if exists name env then
+		 		uprint_endline (name ^. us" EXISTS in scope")
+		 	else 
+		 		uprint_endline (name ^. us" DOES NOT EXIST in scope"));
+		 	env
+		 | TmConst(fi,const) -> env
+		 | TmFunc(fi,params,tm) -> traverse tm env
+		 | TmCall(fi,tm,tmlist) -> loop traverse tmlist env
+		(* Other *)
+		 | TmScope(fi,tmlist) -> (loop traverse tmlist env); env
+	in traverse ast []
+
+
 (* Our main function, called from jsh.ml when
 	program is ran with argument 'analyze' *)
 
 let analyze ast = 
-	printf "Listing all variables in file: \n";
+	(*printf "Listing all variables in file: \n";
 	let variables = fetch_variables ast in
-	print_list variables;
-	let renamed_tree = rename_in_scope ast (us"x") (us"mitt_x") in 
-	printf "Program with renamed variables: \n";
-	uprint_endline (pprint renamed_tree)
+	print_list variables;*)
+	let analyze_results = analyze_scope ast in 
+	print_list analyze_results
