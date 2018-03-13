@@ -1,7 +1,7 @@
-var a = 17
+var a = 18
 function f() {
-	var b = 13
-    return b
+	var a = 13
+    return a
 }
 
 c = f()
