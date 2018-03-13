@@ -52,8 +52,8 @@ let rec exists item lst =
 		| x::xs -> if Ustring.equal x item then true else (exists item xs)
 
 (* Check if item exists in env-part of map env *)		
-let exists_in_environment item env = 
-	exists item (StringMap.find "env" env)
+let exists_in_environment item env lst_name = 
+	exists item (StringMap.find lst_name env)
 
 (* Function to conduct a list of all variables in an ast *)
 let fetch_variables ast =
@@ -170,33 +170,38 @@ let rename_in_scope ast name_to_replace new_name =
 (* Functions to handle environment 
    it is a map with two lists, one under 'env' and one under 'error'
    Both contains Ustrings with the allowed and disallowed variables resp. *)
-let get_empty_environment = 
-	let env_map = StringMap.add "env" [] StringMap.empty in 
-	StringMap.add "error" [] env_map
+let get_empty_environment lst_names =
+	let rec loop lst = 
+		match lst with 
+			| [] -> StringMap.empty
+			| x::xs -> StringMap.add x [] (loop xs)
+	in loop lst_names
 
-let get_scope_environment new_env old_env = 
-	let errors = StringMap.find "error" new_env in 
-	let allowed = StringMap.find "env" old_env in 
-	StringMap.add "env" allowed (StringMap.add "error" errors StringMap.empty)
+let print_environment env lst_name headline = 
+	let lst = StringMap.find lst_name env in 
+	print_endline headline;
+	print_list lst
 
-let add_env_var env var = 
-	let allowed_variables = StringMap.find "env" env in
-	let new_variables = var::allowed_variables in 
-	StringMap.add "env" new_variables env
+let get_scope_environment new_env old_env keep replace =
+	let keeped_data = StringMap.find keep new_env in 
+	let replaced_data = StringMap.find replace old_env in 
+	StringMap.add keep keeped_data (StringMap.add replace replaced_data StringMap.empty)
+
+let add_env_var env lst_name var = 
+	let current = StringMap.find lst_name env in
+	let new_content = var::current in 
+	StringMap.add lst_name new_content env
 
 let add_error_var env var = 
 	let error_variables = StringMap.find "error" env in
 	let new_errors = var::error_variables in 
 	StringMap.add "error" new_errors env
 
-let merge_environments env1 env2 = 
-	let errors = append (StringMap.find "error" env1) (StringMap.find "error" env2) in 
-	StringMap.add "error" errors get_empty_environment
+let merge_environments lst_name env1 env2 lst_names = 
+	let errors = append (StringMap.find lst_name env1) (StringMap.find lst_name env2) in 
+	StringMap.add lst_name errors (get_empty_environment lst_names)
 
-let print_environment env = 
-	let errors = StringMap.find "error" env in 
-	print_endline "Error variables:";
-	print_list errors
+
 
 
 (* Function to analyze scope. 
@@ -210,29 +215,59 @@ let analyze_scope ast =
 		 | TmDef(fi,isconst,name,tm) ->
 		 	(match tm with 
 		 		| TmFunc(fi2, const, tm2) -> traverse tm env
-	 			| TmVar(fi2, isconst2, name2) -> traverse tm (add_env_var env name)
-		 		| TmAssign(fi2, name2, tm2) -> traverse tm (add_env_var env name)
-		 		| TmConst(fi2, const2) -> traverse tm (if isconst then env else (add_env_var env name))
-		 		| _ -> traverse tm (add_env_var env name))
+	 			| TmVar(fi2, isconst2, name2) -> traverse tm (add_env_var env "env" name)
+		 		| TmAssign(fi2, name2, tm2) -> traverse tm (add_env_var env "env" name)
+		 		| TmConst(fi2, const2) -> traverse tm (if isconst then env else (add_env_var env "env" name))
+		 		| _ -> traverse tm (add_env_var env "env" name))
 		 | TmWhile (fi, tm_head, tm_body) -> traverse tm_body env
-		 | TmIf(fi,tm1,tm2,tm3) -> merge_environments (traverse tm2 env) (match tm3 with 
+		 | TmIf(fi,tm1,tm2,tm3) -> merge_environments "error" (traverse tm2 env) (match tm3 with 
 		 	| Some(tm) -> traverse tm env 
-		 	| None -> env )
+		 	| None -> env ) ["env"; "error"]
 		 | TmAssign(fi,name,tm) -> traverse tm env
 		 | TmRet(fi,tm) -> traverse tm env
 		(* Expressions *)
 		 | TmVar(fi,isconst,name) -> 
-		 	if exists_in_environment name env then
+		 	if exists_in_environment name env "env" then
 		 		env
 		 	else 
-		 		add_error_var env name
+		 		add_env_var env "error" name
 		 | TmConst(fi,const) -> env
 		 | TmFunc(fi,params,tm) -> traverse tm env
 		 | TmCall(fi,tm,tmlist) -> loop traverse tmlist env
 		(* Other *)
-		 | TmScope(fi,tmlist) -> get_scope_environment (loop traverse tmlist env) env
-	in traverse ast get_empty_environment
+		 | TmScope(fi,tmlist) -> get_scope_environment (loop traverse tmlist env) env "error" "env"
+	in traverse ast (get_empty_environment ["env"; "error"])
 
+let find_missing_calls ast = 
+	let rec traverse ast env = 
+		match ast with 
+		(* Statements *)
+		 | TmDef(fi,isconst,name,tm) ->
+		 	(match tm with 
+		 		| TmFunc(fi2, const, tm2) -> traverse tm (add_env_var env "function_definitions" name)
+	 			| TmVar(fi2, isconst2, name2) -> traverse tm env
+		 		| TmAssign(fi2, name2, tm2) -> traverse tm env
+		 		| TmConst(fi2, const2) -> traverse tm env
+		 		| _ -> traverse tm env)
+		 | TmWhile (fi, tm_head, tm_body) -> traverse tm_body env
+		 | TmIf(fi,tm1,tm2,tm3) -> merge_environments "function_definitions" (traverse tm2 env) (match tm3 with 
+		 	| Some(tm) -> traverse tm env 
+		 	| None -> env ) ["function_definitions";"calls"]
+		 | TmAssign(fi,name,tm) -> traverse tm env
+		 | TmRet(fi,tm) -> traverse tm env
+		(* Expressions *)
+		 | TmVar(fi,isconst,name) -> env
+		 | TmConst(fi,const) -> env
+		 | TmFunc(fi,params,tm) -> traverse tm env
+		 | TmCall(fi,tm,tmlist) -> 
+		 	(match tm with 
+		 		| TmVar(fi2, isconst2, name) -> loop traverse tmlist (add_env_var env "calls" name)
+		 		| _ -> loop traverse tmlist env)
+		(* Other *)
+		 | TmScope(fi,tmlist) -> loop traverse tmlist env
+	in 
+	let calls_map = traverse ast (get_empty_environment ["function_definitions";"calls"]) in 
+	reduce (fun x acc -> if exists x (StringMap.find "calls" calls_map) then acc else x::acc) (StringMap.find "function_definitions" calls_map) []
 
 (* Our main function, called from jsh.ml when
 	program is ran with argument 'analyze' *)
@@ -241,5 +276,10 @@ let analyze ast =
 	(*printf "Listing all variables in file: \n";
 	let variables = fetch_variables ast in
 	print_list variables;*)
-	let analyze_results = analyze_scope ast in 
-	print_environment analyze_results
+	let analyze_results = analyze_scope ast in
+	if (List.length (StringMap.find "error" analyze_results)) > 0 then 
+		print_environment analyze_results "error" "Variables missing in scope:";
+	let missing_calls = find_missing_calls ast in 
+	if (List.length missing_calls) > 0 then 
+		print_endline "File contains missing calls:";
+		print_list missing_calls
