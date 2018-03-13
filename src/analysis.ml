@@ -11,6 +11,10 @@ open Msg
 *)
 
 module StringMap = Map.Make (String)
+module UStringMap = Map.Make (Ustring)
+
+(* A function consists of a name and number of params *)
+type fd = FuncData of ustring * int
 
 (* Function to append two lists *)
 let append l1 l2 =
@@ -50,6 +54,15 @@ let rec exists item lst =
 	match lst with 
 		| [] -> false 
 		| x::xs -> if Ustring.equal x item then true else (exists item xs)
+
+let rec exists_funcdata item lst = 
+	match lst with 
+		| [] -> false 
+		| x::xs -> (
+			match x, item with 
+				| FuncData(name, _), FuncData(name2, _) -> (if Ustring.equal name name2 then true else (exists_funcdata item xs))	
+		)
+		
 
 (* Check if item exists in env-part of map env *)		
 let exists_in_environment item env lst_name = 
@@ -201,8 +214,17 @@ let merge_environments lst_name env1 env2 lst_names =
 	let errors = append (StringMap.find lst_name env1) (StringMap.find lst_name env2) in 
 	StringMap.add lst_name errors (get_empty_environment lst_names)
 
+let get_num_params_from_func_data data = 
+	match data with FuncData(name, num_params) -> num_params
 
-
+let get_num_params_in_list lst name = 
+	let rec loop lst = 
+		match lst with 
+			| [] -> 0
+			| x::xs -> (
+			match x with 
+				| FuncData(func_name, num_params) -> if Ustring.equal name func_name then num_params else (loop xs))
+		in loop lst
 
 (* Function to analyze scope. 
    env is a list of two lists: 
@@ -269,6 +291,52 @@ let find_missing_calls ast =
 	let calls_map = traverse ast (get_empty_environment ["function_definitions";"calls"]) in 
 	reduce (fun x acc -> if exists x (StringMap.find "calls" calls_map) then acc else x::acc) (StringMap.find "function_definitions" calls_map) []
 
+let number_of_function_parameters ast = 
+	let rec traverse ast env = 
+		match ast with 
+		(* Statements *)
+		 | TmDef(fi,isconst,name,tm) ->
+		 	(match tm with 
+		 		| TmFunc(fi2, params, tm2) -> let data = FuncData(name, (List.length params)) in traverse tm (add_env_var env "function_definitions" data)
+	 			| TmVar(fi2, isconst2, name2) -> traverse tm env
+		 		| TmAssign(fi2, name2, tm2) -> traverse tm env
+		 		| TmConst(fi2, const2) -> traverse tm env
+		 		| _ -> traverse tm env)
+		 | TmWhile (fi, tm_head, tm_body) -> traverse tm_body env
+		 | TmIf(fi,tm1,tm2,tm3) -> merge_environments "function_definitions" (traverse tm2 env) (match tm3 with 
+		 	| Some(tm) -> traverse tm env 
+		 	| None -> env ) ["function_definitions";"calls"]
+		 | TmAssign(fi,name,tm) -> traverse tm env
+		 | TmRet(fi,tm) -> traverse tm env
+		(* Expressions *)
+		 | TmVar(fi,isconst,name) -> env
+		 | TmConst(fi,const) -> env
+		 | TmFunc(fi,params,tm) -> traverse tm env
+		 | TmCall(fi,tm,tmlist) -> 
+		 	(match tm with 
+		 		| TmVar(fi2, isconst2, name) -> let data = FuncData(name, List.length tmlist) in loop traverse tmlist (add_env_var env "calls" data)
+		 		| _ -> loop traverse tmlist env)
+		(* Other *)
+		 | TmScope(fi,tmlist) -> loop traverse tmlist env
+	in 
+	let calls_map = traverse ast (get_empty_environment ["function_definitions";"calls"]) in 
+	reduce (
+		fun x acc -> 
+			if exists_funcdata x (StringMap.find "function_definitions" calls_map) then 
+				(* This is a call to a defined function - check that number of parameters are correct *)
+				match x with 
+					| FuncData(name, num_params_in_call) -> 
+						let num_params_in_definition = get_num_params_in_list (StringMap.find "function_definitions" calls_map) name in 
+						if num_params_in_call <> num_params_in_definition then
+							name::acc
+						else 
+							acc
+
+			else 
+				acc
+		) (StringMap.find "calls" calls_map) []
+
+
 (* Our main function, called from jsh.ml when
 	program is ran with argument 'analyze' *)
 
@@ -282,4 +350,8 @@ let analyze ast =
 	let missing_calls = find_missing_calls ast in 
 	if (List.length missing_calls) > 0 then 
 		print_endline "File contains missing calls:";
-		print_list missing_calls
+		print_list missing_calls;
+	let function_parameters = number_of_function_parameters ast in 
+	if List.length function_parameters > 0 then
+		print_endline "Functions that has wrong number of parameters:";
+		print_list function_parameters
