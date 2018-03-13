@@ -254,7 +254,7 @@ let analyze_scope ast =
 		 	else 
 		 		add_env_var env "error" name
 		 | TmConst(fi,const) -> env
-		 | TmFunc(fi,params,tm) -> traverse tm env
+		 | TmFunc(fi,params,tm) -> traverse tm (loop (fun x acc -> add_env_var acc "env" x) params env)
 		 | TmCall(fi,tm,tmlist) -> loop traverse tmlist env
 		(* Other *)
 		 | TmScope(fi,tmlist) -> get_scope_environment (loop traverse tmlist env) env "error" "env"
