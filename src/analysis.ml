@@ -29,7 +29,7 @@ let print_list lst =
 let rec reduce f lst acc = 
 	match lst with 
 		| [] -> []
-		| x::xs -> (print_string ("Reducing, acc length is: " ^ (string_of_int (List.length acc)))); append (f x acc) (reduce f xs acc)
+		| x::xs -> append (f x acc) (reduce f xs acc)
 
 (* A function to loop over elements in lst 
    calling function f with accumulator acc *)
