@@ -10,6 +10,8 @@ open Msg
    The main file for performing program analysis.
 *)
 
+module StringMap = Map.Make (String)
+
 (* Function to append two lists *)
 let append l1 l2 =
   let rec loop acc l1 l2 =
@@ -42,10 +44,12 @@ let map f l = List.fold_right (fun x a -> (f x) :: a) l []
 let map_two_args f l y = List.fold_right (fun x a -> (f x y) :: a) l []
 
 (* Does item exists in lst? *)
-let rec exists item lst = 
-	match lst with 
-		| [] -> false 
-		| x::xs -> if Ustring.equal x item then true else (exists item xs)
+let exists_in_environment item env = 
+	let rec exists item lst = 
+		match lst with 
+			| [] -> false 
+			| x::xs -> if Ustring.equal x item then true else (exists item xs)
+	in exists item (StringMap.find "env" env)
 
 (* Function to conduct a list of all variables in an ast *)
 let fetch_variables ast =
@@ -164,6 +168,39 @@ let rename_in_scope ast name_to_replace new_name =
 		 | TmScope(fi,tmlist) -> print_endline "Scope"; TmScope(fi, map traverse tmlist)
 	in traverse ast
 
+let get_empty_environment = 
+	let env_map = StringMap.add "env" [] StringMap.empty in 
+	StringMap.add "error" [] env_map
+
+let get_scope_environment new_env old_env = 
+	let errors = StringMap.find "error" new_env in 
+	let allowed = StringMap.find "env" old_env in 
+	StringMap.add "env" allowed (StringMap.add "error" errors StringMap.empty)
+
+let add_env_var env var = 
+	let allowed_variables = StringMap.find "env" env in
+	let new_variables = var::allowed_variables in 
+	StringMap.add "env" new_variables env
+
+let add_error_var env var = 
+	let error_variables = StringMap.find "error" env in
+	let new_errors = var::error_variables in 
+	StringMap.add "error" new_errors env
+
+let merge_environments env1 env2 = 
+	let errors = append (StringMap.find "error" env1) (StringMap.find "error" env2) in 
+	StringMap.add "error" errors get_empty_environment
+
+let print_environment env = 
+	let errors = StringMap.find "error" env in 
+	print_endline "Error variables:";
+	print_list errors
+
+
+(* Function to analyze scope. 
+   env is a list of two lists: 
+   the first is the allowed variables 
+   the second is the problematic variables *)
 let analyze_scope ast = 
 	let rec traverse ast env = 
 		match ast with 
@@ -171,29 +208,28 @@ let analyze_scope ast =
 		 | TmDef(fi,isconst,name,tm) ->
 		 	(match tm with 
 		 		| TmFunc(fi2, const, tm2) -> traverse tm env
-	 			| TmVar(fi2, isconst2, name2) -> traverse tm (name::env)
-		 		| TmAssign(fi2, name2, tm2) -> traverse tm (name::env)
-		 		| TmConst(fi2, const2) -> traverse tm (if isconst then env else (name::env))
-		 		| _ -> traverse tm (name::env))
+	 			| TmVar(fi2, isconst2, name2) -> traverse tm (add_env_var env name)
+		 		| TmAssign(fi2, name2, tm2) -> traverse tm (add_env_var env name)
+		 		| TmConst(fi2, const2) -> traverse tm (if isconst then env else (add_env_var env name))
+		 		| _ -> traverse tm (add_env_var env name))
 		 | TmWhile (fi, tm_head, tm_body) -> traverse tm_body env
-		 | TmIf(fi,tm1,tm2,tm3) -> append (traverse tm2 env) (match tm3 with 
+		 | TmIf(fi,tm1,tm2,tm3) -> merge_environments (traverse tm2 env) (match tm3 with 
 		 	| Some(tm) -> traverse tm env 
 		 	| None -> env )
 		 | TmAssign(fi,name,tm) -> traverse tm env
 		 | TmRet(fi,tm) -> traverse tm env
 		(* Expressions *)
 		 | TmVar(fi,isconst,name) -> 
-		 	(if exists name env then
-		 		uprint_endline (name ^. us" EXISTS in scope")
+		 	if exists_in_environment name env then
+		 		env
 		 	else 
-		 		uprint_endline (name ^. us" DOES NOT EXIST in scope"));
-		 	env
+		 		add_error_var env name
 		 | TmConst(fi,const) -> env
 		 | TmFunc(fi,params,tm) -> traverse tm env
 		 | TmCall(fi,tm,tmlist) -> loop traverse tmlist env
 		(* Other *)
-		 | TmScope(fi,tmlist) -> (loop traverse tmlist env); env
-	in traverse ast []
+		 | TmScope(fi,tmlist) -> get_scope_environment (loop traverse tmlist env) env
+	in traverse ast get_empty_environment
 
 
 (* Our main function, called from jsh.ml when
@@ -204,4 +240,4 @@ let analyze ast =
 	let variables = fetch_variables ast in
 	print_list variables;*)
 	let analyze_results = analyze_scope ast in 
-	print_list analyze_results
+	print_environment analyze_results
