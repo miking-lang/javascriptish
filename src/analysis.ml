@@ -43,13 +43,17 @@ let rec loop f lst acc =
 let map f l = List.fold_right (fun x a -> (f x) :: a) l []
 let map_two_args f l y = List.fold_right (fun x a -> (f x y) :: a) l []
 
+
+
 (* Does item exists in lst? *)
+let rec exists item lst = 
+	match lst with 
+		| [] -> false 
+		| x::xs -> if Ustring.equal x item then true else (exists item xs)
+
+(* Check if item exists in env-part of map env *)		
 let exists_in_environment item env = 
-	let rec exists item lst = 
-		match lst with 
-			| [] -> false 
-			| x::xs -> if Ustring.equal x item then true else (exists item xs)
-	in exists item (StringMap.find "env" env)
+	exists item (StringMap.find "env" env)
 
 (* Function to conduct a list of all variables in an ast *)
 let fetch_variables ast =
@@ -123,11 +127,6 @@ let rename_variable ast =
 		 | TmScope(fi,tmlist) -> TmScope(fi, map traverse tmlist)
 	in traverse ast
 
-let replace_in_list lst name_to_replace new_name = 
-	let replace x a = 
-		(if (Ustring.equal x name_to_replace) then new_name else x) :: a
-	in map replace lst
-
 let rename_in_scope ast name_to_replace new_name = 
 	let rec traverse ast = 
 		uprint_endline (pprint ast);
@@ -168,6 +167,9 @@ let rename_in_scope ast name_to_replace new_name =
 		 | TmScope(fi,tmlist) -> print_endline "Scope"; TmScope(fi, map traverse tmlist)
 	in traverse ast
 
+(* Functions to handle environment 
+   it is a map with two lists, one under 'env' and one under 'error'
+   Both contains Ustrings with the allowed and disallowed variables resp. *)
 let get_empty_environment = 
 	let env_map = StringMap.add "env" [] StringMap.empty in 
 	StringMap.add "error" [] env_map
