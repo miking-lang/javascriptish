@@ -73,7 +73,6 @@ let exists_in_environment item env lst_name =
 (* Function to conduct a list of all variables in an ast *)
 let fetch_variables ast =
 	let rec traverse ast acc = 
-	uprint_endline (pprint ast);
 	  match ast with
 		(* Statements *)
 		 | TmDef(_,_,name,tm) -> traverse tm acc
@@ -95,7 +94,6 @@ let fetch_variables ast =
 (* Fetch all variables until new scope is reached *)
 let fetch_variables_scope ast =
 	let rec traverse ast acc = 
-	uprint_endline (pprint ast);
 	  match ast with
 		(* Statements *)
 		 | TmDef(_,isconst,name,tm) -> traverse tm (if isconst then acc else (name::acc))
@@ -117,7 +115,6 @@ let fetch_variables_scope ast =
 (* Function to rename some variables, only to practice transformation of the AST *)
 let rename_variable ast =
 	let rec traverse ast =  
-	(*uprint_string(us"Traversing:" ^. (pprint ast));*)
 	  match ast with
 		(* Statements *)
 		 | TmDef(fi,isconst,name,tm) -> (
@@ -144,7 +141,6 @@ let rename_variable ast =
 
 let rename_in_scope ast name_to_replace new_name = 
 	let rec traverse ast = 
-		uprint_endline (pprint ast);
 		match ast with 
 		(* Statements *)
 		 | TmDef(fi,isconst,name,tm) -> uprint_endline (us"Def av " ^. name); 
@@ -417,13 +413,13 @@ let analyze ast =
 		print_environment analyze_results "error" "Variables missing in scope:";
 	let missing_calls = find_missing_calls ast in 
 	if (List.length missing_calls) > 0 then 
-		print_endline "File contains missing calls:";
-		print_list missing_calls;
+		(print_endline "File contains missing calls:";
+		print_list missing_calls);
 	let function_parameters = number_of_function_parameters ast in 
 	if List.length function_parameters > 0 then
-		print_endline "Functions that has wrong number of parameters:";
-		print_list function_parameters;
+		(print_endline "Functions that has wrong number of parameters:";
+		print_list function_parameters);
 	let uncatched_returns = detect_uncatched_return_values ast in 
 	if List.length uncatched_returns > 0 then 
-		print_endline "Function calls that do not catch return values:";
-		print_list uncatched_returns
+		(print_endline "Function calls that do not catch return values:";
+		print_list uncatched_returns)
