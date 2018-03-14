@@ -260,6 +260,9 @@ let analyze_scope ast =
 		 | TmScope(fi,tmlist) -> get_scope_environment (loop traverse tmlist env) env "error" "env"
 	in traverse ast (get_empty_environment ["env"; "error"])
 
+(* Function to find missing calls to declared functions.
+   Populates a string map with a list of Ustring with the declared functions in 'function_defintitions'
+   and the calls in 'calls' and checks that every declared function is called *)
 let find_missing_calls ast = 
 	let rec traverse ast env = 
 		match ast with 
@@ -291,6 +294,10 @@ let find_missing_calls ast =
 	let calls_map = traverse ast (get_empty_environment ["function_definitions";"calls"]) in 
 	reduce (fun x acc -> if exists x (StringMap.find "calls" calls_map) then acc else x::acc) (StringMap.find "function_definitions" calls_map) []
 
+(* Function to check that the declared functions are called with the correct number of parameters.
+   Populates a string map with a list of FuncData, which contains the name of the function and the
+   number of parameters, both for the defined functions as well as the calls. For each defined function,
+   check that all calls have the correct number of parameters. *)
 let number_of_function_parameters ast = 
 	let rec traverse ast env = 
 		match ast with 
@@ -335,6 +342,7 @@ let number_of_function_parameters ast =
 			else 
 				acc
 		) (StringMap.find "calls" calls_map) []
+
 
 
 (* Our main function, called from jsh.ml when
