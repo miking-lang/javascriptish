@@ -183,8 +183,8 @@ let rename_in_scope ast name_to_replace new_name =
 	in traverse ast
 
 (* Functions to handle environment 
-   it is a map with two lists, one under 'env' and one under 'error'
-   Both contains Ustrings with the allowed and disallowed variables resp. *)
+   it is a map with lists, under the strings provided in lst_names
+   Both contains Ustrings *)
 let get_empty_environment lst_names =
 	let rec loop lst = 
 		match lst with 
@@ -206,11 +206,6 @@ let add_env_var env lst_name var =
 	let current = StringMap.find lst_name env in
 	let new_content = var::current in 
 	StringMap.add lst_name new_content env
-
-let add_error_var env var = 
-	let error_variables = StringMap.find "error" env in
-	let new_errors = var::error_variables in 
-	StringMap.add "error" new_errors env
 
 let merge_environments lst_name env1 env2 lst_names = 
 	let errors = append (StringMap.find lst_name env1) (StringMap.find lst_name env2) in 
