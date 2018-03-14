@@ -11,7 +11,6 @@ open Msg
 *)
 
 module StringMap = Map.Make (String)
-module UStringMap = Map.Make (Ustring)
 
 (* A function consists of a name and number of params *)
 type fd = FuncData of ustring * int
