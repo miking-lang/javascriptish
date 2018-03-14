@@ -264,7 +264,7 @@ let analyze_scope ast =
 	in traverse ast (get_empty_environment ["env"; "error"])
 
 (* Function to find missing calls to declared functions.
-   Populates a string map with a list of Ustring with the declared functions in 'function_defintitions'
+   Populates a string map with a list of Ustring with the declared functions in 'function_definitions'
    and the calls in 'calls' and checks that every declared function is called *)
 let find_missing_calls ast = 
 	let rec traverse ast env = 
@@ -377,6 +377,7 @@ let detect_uncatched_return_values ast =
 	 			| TmVar(fi2, isconst2, name2) -> traverse tm env
 		 		| TmAssign(fi2, name2, tm2) -> traverse tm env
 		 		| TmConst(fi2, const2) -> traverse tm env
+		 		| TmCall(fi2, tm, tmlist) -> env (* A call in a definition means that we handle return *)
 		 		| _ -> traverse tm env)
 		 | TmWhile (fi, tm_head, tm_body) -> traverse tm_body env
 		 | TmIf(fi,tm1,tm2,tm3) -> merge_environments "function_definitions" (traverse tm2 env) (match tm3 with 
@@ -398,7 +399,7 @@ let detect_uncatched_return_values ast =
 		 | TmCall(fi,tm,tmlist) -> (* If we are here, we are not in an assignment *)
 		 	(match tm with 
 		 		| TmVar(fi2, isconst2, name) -> 
-		 			if exists_in_environment name env "function_defintitions" then
+		 			if exists_in_environment name env "function_definitions" then
 			 			add_env_var env "calls" name
 			 		else env
 		 		| _ -> env)
