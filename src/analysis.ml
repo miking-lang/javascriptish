@@ -47,7 +47,10 @@ let rec loop f lst acc =
 let map f l = List.fold_right (fun x a -> (f x) :: a) l []
 let map_two_args f l y = List.fold_right (fun x a -> (f x y) :: a) l []
 
-
+let rec boolean_reduce f lst = 
+	match lst with 
+		| [] -> false
+		| x::xs -> (f x) || (boolean_reduce f xs)
 
 (* Does item exists in lst? *)
 let rec exists item lst = 
@@ -343,6 +346,68 @@ let number_of_function_parameters ast =
 				acc
 		) (StringMap.find "calls" calls_map) []
 
+(* Function to detect uncatched return values
+   by traversing the ast and detecting defined functions with return statements
+   and checking that calls to those functions are contained in a assignment term *)
+let detect_uncatched_return_values ast = 
+	let rec is_non_void ast = 
+		match ast with 
+		(* Statements *)
+		 | TmDef(fi,isconst,name,tm) -> is_non_void tm
+		 | TmWhile (fi, tm_head, tm_body) -> is_non_void tm_body
+		 | TmIf(fi,tm1,tm2,tm3) -> is_non_void tm2 || (match tm3 with 
+		 	| Some(tm) -> is_non_void tm
+		 	| None -> false )
+		 | TmAssign(fi,name,tm) -> is_non_void tm
+		 | TmRet(fi,tm) -> true
+		(* Expressions *)
+		 | TmVar(fi,isconst,name) -> false
+		 | TmConst(fi,const) -> false
+		 | TmFunc(fi,params,tm) -> is_non_void tm
+		 | TmCall(fi,tm,tmlist) -> false
+		(* Other *)
+		 | TmScope(fi,tmlist) -> boolean_reduce is_non_void tmlist
+	in
+	let rec traverse ast env = 
+		match ast with 
+		(* Statements *)
+		 | TmDef(fi,isconst,name,tm) ->
+		 	(match tm with 
+		 		| TmFunc(fi2, const, tm2) -> if is_non_void tm then add_env_var env "function_definitions" name else env
+	 			| TmVar(fi2, isconst2, name2) -> traverse tm env
+		 		| TmAssign(fi2, name2, tm2) -> traverse tm env
+		 		| TmConst(fi2, const2) -> traverse tm env
+		 		| _ -> traverse tm env)
+		 | TmWhile (fi, tm_head, tm_body) -> traverse tm_body env
+		 | TmIf(fi,tm1,tm2,tm3) -> merge_environments "function_definitions" (traverse tm2 env) (match tm3 with 
+		 	| Some(tm) -> traverse tm env 
+		 	| None -> env ) ["function_definitions";"calls"]
+		 | TmAssign(fi,name,tm) -> (
+		 	match tm with 
+		 		| TmCall(fi2, tm2, tmlist) -> env
+		 		| _ -> traverse tm env
+		 	)
+		 | TmRet(fi,tm) -> (match tm with 
+		 	| TmCall(fi2, tm2, tmlist) -> env
+		 	|	_ -> traverse tm env
+		 	)
+		(* Expressions *)
+		 | TmVar(fi,isconst,name) -> env
+		 | TmConst(fi,const) -> env
+		 | TmFunc(fi,params,tm) -> traverse tm env
+		 | TmCall(fi,tm,tmlist) -> (* If we are here, we are not in an assignment *)
+		 	(match tm with 
+		 		| TmVar(fi2, isconst2, name) -> 
+		 			if exists_in_environment name env "function_defintitions" then
+			 			add_env_var env "calls" name
+			 		else env
+		 		| _ -> env)
+		(* Other *)
+		 | TmScope(fi,tmlist) -> loop traverse tmlist env
+	in 
+	let calls_map = traverse ast (get_empty_environment ["function_definitions";"calls"]) in 
+	StringMap.find "calls" calls_map
+
 
 
 (* Our main function, called from jsh.ml when
@@ -362,4 +427,8 @@ let analyze ast =
 	let function_parameters = number_of_function_parameters ast in 
 	if List.length function_parameters > 0 then
 		print_endline "Functions that has wrong number of parameters:";
-		print_list function_parameters
+		print_list function_parameters;
+	let uncatched_returns = detect_uncatched_return_values ast in 
+	if List.length uncatched_returns > 0 then 
+		print_endline "Function calls that do not catch return values:";
+		print_list uncatched_returns
