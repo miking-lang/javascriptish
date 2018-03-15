@@ -1,13 +1,14 @@
-echo "Testing files"
+#!/bin/sh
+#echo "Testing files"
 
-declare -a files=("scope-working.jsh"
-				  "scope-error.jsh"
-				  "missing-call.jsh"
-				  "too-many-parameters.jsh"
-				  "catch-return.jsh")
+SEARCH_FOLDER="code_examples/*"
 
-for i in "${files[@]}"
+for f in $SEARCH_FOLDER
 do
-	echo "Investigating file $i"
-	eval "./jsh analyze $i"
+	echo "Evaluating " $f
+    for ff in $f/*
+    do    
+    	echo "Analyzing $ff"  
+        eval "./jsh analyze $ff"
+    done
 done
