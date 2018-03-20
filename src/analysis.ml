@@ -25,7 +25,8 @@ type environment_info =
 	| ErrorMsg of info * ustring * ustring (* fi, name, message *)
 	| FunctionMsg of info * ustring * ustring * int * bool
 	| VariableInfo of ustring
-	| FunctionInfo of ustring * int
+	| FunctionInfo of info * ustring * int * bool (* name, number_of_arguments, called? *)
+	| CallInfo of info * ustring
 
 (* Function to append two lists *)
 let append l1 l2 =
@@ -76,7 +77,7 @@ let rec exists name lst =
 		| [] -> false 
 		| x::xs -> (match x with 
 			| VariableInfo(name2) -> if Ustring.equal name name2 then true else (exists name xs)
-			| FunctionInfo(name2, num_args) -> if Ustring.equal name name2 then true else (exists name xs)
+			| FunctionInfo(info, name2, num_args, called) -> if Ustring.equal name name2 then true else (exists name xs)
 			| _ -> false
 		)
 
@@ -103,8 +104,7 @@ let get_empty_environment lst_names =
 			| x::xs -> StringMap.add x [] (loop xs)
 	in loop lst_names
 
-let print_environment env lst_name headline = 
-	let lst = StringMap.find lst_name env in 
+let print_errors lst headline = 
 	print_endline headline;
 	print_list lst
 
@@ -127,6 +127,20 @@ let merge_environments env1 env2 lst_names =
 			| [] -> StringMap.empty
 			| x::xs -> StringMap.add x (List.append (StringMap.find x env1) (StringMap.find x env2)) (loop xs)
 	in loop lst_names
+
+(* Mark function with provided name as called *)
+let mark_as_called env function_name = 
+	let rec loop lst = 
+		match lst with 
+			| [] -> []
+			| x::xs -> match x with FunctionInfo(fi, name, num_args, called) -> (
+				if Ustring.equal name function_name then 
+					let new_function = FunctionInfo(fi, name, num_args, true) in 
+					new_function::xs
+				else 
+					x::(loop xs)
+				)
+	in StringMap.add "function_definitions" (loop (StringMap.find "function_definitions" env)) env
 		
 (*)
 
@@ -143,7 +157,7 @@ let get_num_params_in_list lst name =
 			| [] -> 0
 			| x::xs -> (
 			match x with 
-				| FunctionInfo(func_name, num_params) -> if Ustring.equal name func_name then num_params else (loop xs))
+				| FunctionInfo(info, func_name, num_params, called) -> if Ustring.equal name func_name then num_params else (loop xs))
 				| _ -> 0
 		in loop lst
 
@@ -157,7 +171,7 @@ let analyze_scope ast errors =
 		(* Statements *)
 		 | TmDef(fi,isconst,name,tm) ->
 		 	(match tm with 
-		 		| TmFunc(fi2, params, tm2) -> let data = FunctionInfo(name, (List.length params)) in traverse tm (add_env_var env "function_definitions" data)
+		 		| TmFunc(fi2, params, tm2) -> let data = FunctionInfo(fi, name, (List.length params), false) in traverse tm (add_env_var env "function_definitions" data)
 	 			| TmVar(fi2, isconst2, name2) -> let varinfo = VariableInfo(name) in traverse tm (add_env_var env "env" varinfo)
 		 		| TmAssign(fi2, name2, tm2) -> let varinfo = VariableInfo(name) in  traverse tm (add_env_var env "env" varinfo)
 		 		| TmConst(fi2, const2) -> let varinfo = VariableInfo(name) in  traverse tm (if isconst then env else (add_env_var env "env" varinfo))
@@ -181,6 +195,8 @@ let analyze_scope ast errors =
 		 	(match tm with 
 		 		| TmVar(fi2, isconst2, name) -> (
 		 			if exists_in_environment name env "function_definitions" then
+		 				(* Mark function as called *)
+		 				let env = mark_as_called env name in
 		 				if (List.length tmlist) <> (get_num_params_in_list (StringMap.find "function_definitions" env) name) then
 		 					let error = ErrorMsg(fi2, name, us"WRONG_NUMBER_OF_PARAMS") in add_env_var env "errors" error 
 		 				else env
@@ -190,12 +206,25 @@ let analyze_scope ast errors =
 		 		| _ -> loop traverse tmlist env)
 		(* Other *)
 		 | TmScope(fi,tmlist) -> get_scope_environment (loop traverse tmlist env) ["errors"; "function_definitions"] "env"
-	in traverse ast (StringMap.add "errors" errors (get_empty_environment ["env";"function_definitions"]))
+	in 
+	let environment = traverse ast (StringMap.add "errors" errors (get_empty_environment ["env";"function_definitions"])) in 
+	let errors = StringMap.find "errors" environment in 
+	let function_definitions = StringMap.find "function_definitions" environment in 
+	reduce (fun x acc -> 
+		match x with 
+			| FunctionInfo(fi, name, num_params, called) -> (
+				if not called then 
+					let error = ErrorMsg(fi, name, us"FUNCTION_NOT_CALLED") in 
+					error::acc
+				else 
+					acc
+				)
+	) function_definitions errors
 
 (* Function to find missing calls to declared functions.
    Populates a string map with a list of Ustring with the declared functions in 'function_definitions'
    and the calls in 'calls' and checks that every declared function is called *)
-(*let find_missing_calls ast = 
+(*let find_missing_calls ast errors = 
 	let rec traverse ast env = 
 		match ast with 
 		(* Statements *)
@@ -218,60 +247,19 @@ let analyze_scope ast errors =
 		 | TmFunc(fi,params,tm) -> traverse tm env
 		 | TmCall(fi,tm,tmlist) -> 
 		 	(match tm with 
-		 		| TmVar(fi2, isconst2, name) -> loop traverse tmlist (add_env_var env "calls" name)
+		 		| TmVar(fi2, isconst2, name) -> let call = CallInfo(fi, name) in loop traverse tmlist (add_env_var env "calls" call)
 		 		| _ -> loop traverse tmlist env)
 		(* Other *)
 		 | TmScope(fi,tmlist) -> loop traverse tmlist env
 	in 
 	let calls_map = traverse ast (get_empty_environment ["function_definitions";"calls"]) in 
-	reduce (fun x acc -> if exists x (StringMap.find "calls" calls_map) then acc else x::acc) (StringMap.find "function_definitions" calls_map) []
+	let errors = reduce (fun x acc -> if exists x (StringMap.find "calls" calls_map) then acc else (let error = ErrorMsg() x::acc)) (StringMap.find "function_definitions" calls_map) [] in 
 *)
-(* Function to check that the declared functions are called with the correct number of parameters.
-   Populates a string map with a list of FuncData, which contains the name of the function and the
-   number of parameters, both for the defined functions as well as the calls. For each defined function,
-   check that all calls have the correct number of parameters. *)
-(*let number_of_function_parameters ast = 
-	let rec traverse ast env = 
-		match ast with 
-		(* Statements *)
-		 | TmDef(fi,isconst,name,tm) ->
-		 	(match tm with 
-		 		| TmFunc(fi2, params, tm2) -> let data = FunctionInfo(name, (List.length params)) in traverse tm (add_env_var env "function_definitions" data)
-	 			| TmVar(fi2, isconst2, name2) -> traverse tm env
-		 		| TmAssign(fi2, name2, tm2) -> traverse tm env
-		 		| TmConst(fi2, const2) -> traverse tm env
-		 		| _ -> traverse tm env)
-		 | TmWhile (fi, tm_head, tm_body) -> traverse tm_body env
-		 | TmIf(fi,tm1,tm2,tm3) -> merge_environments "function_definitions" (traverse tm2 env) (match tm3 with 
-		 	| Some(tm) -> traverse tm env 
-		 	| None -> env ) ["function_definitions";"errors"]
-		 | TmAssign(fi,name,tm) -> traverse tm env
-		 | TmRet(fi,tm) -> traverse tm env
-		(* Expressions *)
-		 | TmVar(fi,isconst,name) -> env
-		 | TmConst(fi,const) -> env
-		 | TmFunc(fi,params,tm) -> traverse tm env
-		 | TmCall(fi,tm,tmlist) -> 
-		 	(* Since this is a function call, we want to check if it is a defined function (in comparison to for instance print) *)
-		 	(match tm with 
-		 		| TmVar(fi2, isconst2, name) -> (
-		 			if exists_in_environment name env "function_definitions" then
-		 				if (List.length tmlist) <> (get_num_params_in_list (StringMap.find "function_definitions" env) name) then
-		 					let error = ErrorMsg(fi2, name, us"WRONG_NUMBER_OF_PARAMS") in add_env_var env "errors" error 
-		 				else env
-		 			else 
-		 				env
-		 		)
-		 		| _ -> loop traverse tmlist env)
-		(* Other *)
-		 | TmScope(fi,tmlist) -> loop traverse tmlist env
-	in 
-	traverse ast (get_empty_environment ["function_definitions";"errors"])
-(*)
+
 (* Function to detect uncatched return values
    by traversing the ast and detecting defined functions with return statements
    and checking that calls to those functions are contained in a assignment term *)
-let detect_uncatched_return_values ast = 
+(*let detect_uncatched_return_values ast = 
 	let rec is_non_void ast = 
 		match ast with 
 		(* Statements *)
@@ -331,7 +319,6 @@ let detect_uncatched_return_values ast =
 	let calls_map = traverse ast (get_empty_environment ["function_definitions";"calls"]) in 
 	StringMap.find "calls" calls_map
 *)
-*)
 
 (* Our main function, called from jsh.ml when
 	program is ran with argument 'analyze' *)
@@ -341,8 +328,8 @@ let analyze ast =
 	let variables = fetch_variables ast in
 	print_list variables;*)
 	let analyze_results = analyze_scope ast [] in
-	if (List.length (StringMap.find "errors" analyze_results)) > 0 then 
-		print_environment analyze_results "errors" "Variables missing in scope:";
+	if (List.length analyze_results) > 0 then 
+		print_errors analyze_results "Found errors:";
 	(*let missing_calls = find_missing_calls ast in 
 	if (List.length missing_calls) > 0 then 
 		(print_endline "File contains missing calls:";
