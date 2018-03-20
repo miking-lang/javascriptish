@@ -23,6 +23,7 @@ type const =
  | CNeg  | CNot
 (* Utility functions *)
  | CPrint
+ | Break
 
 (* If a variable is declared as const or as a mutable variable *)
 type isconst = bool
@@ -100,7 +101,8 @@ let rec pprint_const prec ptype n c args =
      (match ptype with
      | PrnNormal -> us"print(" ^. ppargs 0 ^. us")"
      | PrnWeb -> us"document.write(" ^. ppargs 0 ^. us")"
-     | PrnNode -> us"console.log(" ^. ppargs 0 ^. us")"))
+     | PrnNode -> us"console.log(" ^. ppargs 0 ^. us")")
+   | Break -> us"break")
 
 
 

@@ -22,6 +22,7 @@
   let str2tm fi s =
     match Ustring.to_utf8 s with
     | "print" -> TmConst(fi,CPrint)
+    | "break" -> TmConst(fi, Break)
     | _ -> TmVar(fi,false,s)
 %}
 
@@ -43,6 +44,7 @@
 %token <unit Ast.tokendata> RETURN
 %token <unit Ast.tokendata> TRUE
 %token <unit Ast.tokendata> FALSE
+%token <unit Ast.tokendata> BREAK
 
 %token <unit Ast.tokendata> EQ            /* "="  */
 %token <unit Ast.tokendata> ADD           /* "+"  */
@@ -135,6 +137,9 @@ stmt:
  | RETURN expr
      { let fi = mkinfo $1.i (tm_info $2) in
        TmRet(fi,$2) }
+ | BREAK 
+     { let fi = mkinfo $1.i $1.i in 
+        TmConst(fi,Break)}
 
 
 expr:
