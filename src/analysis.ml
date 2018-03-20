@@ -53,7 +53,7 @@ let print_list lst =
    and collect in accumulator *)
 let rec reduce f lst acc = 
 	match lst with 
-		| [] -> []
+		| [] -> acc
 		| x::xs -> append (f x acc) (reduce f xs acc)
 
 (* A function to loop over elements in lst 
@@ -234,7 +234,7 @@ let analyze_scope ast errors =
 		 		| TmConst(fi2, const2) -> let varinfo = VariableInfo(name) in traverse tm (if isconst then env else (add_env_var env "env" varinfo))
 		 		| TmCall(fi2, tm2, tmlist) -> (* A call in a definition means that we handle a return value *) let varinfo = VariableInfo(name) in handle_tm_call traverse (add_env_var env "env" varinfo) tm2 tmlist true
 		 		| _ -> let varinfo = VariableInfo(name) in  traverse tm (add_env_var env "env" varinfo))
-		 | TmWhile (fi, tm_head, tm_body) -> traverse tm_body env
+		 | TmWhile (fi, tm_head, tm_body) -> traverse tm_body (traverse tm_head env)
 		 | TmIf(fi,tm1,tm2,tm3) -> merge_environments (traverse tm2 env) (match tm3 with 
 		 	| Some(tm) -> traverse tm env 
 		 	| None -> env ) ["env"; "errors"; "function_definitions"]
@@ -286,7 +286,7 @@ let analyze ast =
 	let variables = fetch_variables ast in
 	print_list variables;*)
 	let analyze_results = analyze_scope ast [] in
-	if (List.length analyze_results) > 0 then 
+	if (List.length analyze_results) > 0 then
 		print_errors analyze_results "Found errors:";
 	(*let missing_calls = find_missing_calls ast in 
 	if (List.length missing_calls) > 0 then 
