@@ -25,7 +25,7 @@ type environment_info =
 	| ErrorMsg of info * ustring * ustring (* fi, name, message *)
 	| FunctionMsg of info * ustring * ustring * int * bool
 	| VariableInfo of ustring
-	| FunctionInfo of info * ustring * int * bool (* name, number_of_arguments, called? *)
+	| FunctionInfo of info * ustring * int * bool * bool (* name, number_of_arguments, called?, non_void? *)
 	| CallInfo of info * ustring
 
 (* Function to append two lists *)
@@ -77,7 +77,7 @@ let rec exists name lst =
 		| [] -> false 
 		| x::xs -> (match x with 
 			| VariableInfo(name2) -> if Ustring.equal name name2 then true else (exists name xs)
-			| FunctionInfo(info, name2, num_args, called) -> if Ustring.equal name name2 then true else (exists name xs)
+			| FunctionInfo(info, name2, num_args, called, non_void) -> if Ustring.equal name name2 then true else (exists name xs)
 			| _ -> false
 		)
 
@@ -133,21 +133,31 @@ let mark_as_called env function_name =
 	let rec loop lst = 
 		match lst with 
 			| [] -> []
-			| x::xs -> match x with FunctionInfo(fi, name, num_args, called) -> (
-				if Ustring.equal name function_name then 
-					let new_function = FunctionInfo(fi, name, num_args, true) in 
-					new_function::xs
-				else 
-					x::(loop xs)
-				)
+			| x::xs -> match x with 
+				| FunctionInfo(fi, name, num_args, called, non_void) -> (
+					if Ustring.equal name function_name then 
+						let new_function = FunctionInfo(fi, name, num_args, true, non_void) in 
+						new_function::xs
+					else 
+						x::(loop xs)
+					)
+				| _ -> loop xs
 	in StringMap.add "function_definitions" (loop (StringMap.find "function_definitions" env)) env
-		
-(*)
 
-let merge_environments lst_name env1 env2 lst_names = 
-	let errors = append (StringMap.find lst_name env1) (StringMap.find lst_name env2) in 
-	StringMap.add lst_name errors (get_empty_environment lst_names)
-*)
+let does_return_value env function_name = 
+	let rec loop lst = 
+		match lst with 
+			| [] -> false
+			| x::xs -> match x with 
+				| FunctionInfo(fi, name, num_args, called, non_void) -> (
+					if Ustring.equal name function_name then 
+						non_void
+					else 
+						loop xs
+					)
+				| _ -> loop xs
+	in loop (StringMap.find "function_definitions" env)
+	
 let get_num_params_from_func_data data = 
 	match data with FuncData(name, num_params) -> num_params
 
@@ -157,9 +167,55 @@ let get_num_params_in_list lst name =
 			| [] -> 0
 			| x::xs -> (
 			match x with 
-				| FunctionInfo(info, func_name, num_params, called) -> if Ustring.equal name func_name then num_params else (loop xs))
-				| _ -> 0
+				| FunctionInfo(info, func_name, num_params, called, non_void) -> if Ustring.equal name func_name then num_params else (loop xs)
+				| _ -> loop xs)
 		in loop lst
+
+(* Fnction to check if the term ends with a return statement or not *)
+let rec is_non_void tm = 
+	match tm with 
+	(* Statements *)
+	 | TmDef(fi,isconst,name,tm) -> is_non_void tm
+	 | TmWhile (fi, tm_head, tm_body) -> is_non_void tm_body
+	 | TmIf(fi,tm1,tm2,tm3) -> is_non_void tm2 || (match tm3 with 
+	 	| Some(tm) -> is_non_void tm
+	 	| None -> false )
+	 | TmAssign(fi,name,tm) -> is_non_void tm
+	 | TmRet(fi,tm) -> true
+	(* Expressions *)
+	 | TmVar(fi,isconst,name) -> false
+	 | TmConst(fi,const) -> false
+	 | TmFunc(fi,params,tm) -> is_non_void tm
+	 | TmCall(fi,tm,tmlist) -> false
+	(* Other *)
+	 | TmScope(fi,tmlist) -> boolean_reduce is_non_void tmlist
+
+let check_function_for_return env tm in_assignment =
+	(match tm with 
+ 		| TmVar(fi2, isconst2, name) -> (
+ 			if not in_assignment && does_return_value env name then 
+ 				let error = ErrorMsg(fi2, name, us"UNCATCHED_RETURN") in
+ 				add_env_var env "errors" error
+ 			else
+ 				env)
+ 		| _ -> env
+ 		)
+
+let handle_tm_call f env tm tmlist in_assignment = 
+	(* Since this is a function call, we want to check if it is a defined function (in comparison to for instance print) *)
+ 	(match tm with 
+ 		| TmVar(fi2, isconst2, name) -> (
+ 			let env = check_function_for_return env tm in_assignment in
+ 			if exists_in_environment name env "function_definitions" then
+ 				(* Mark function as called *)
+ 				let env = mark_as_called env name in
+ 				if (List.length tmlist) <> (get_num_params_in_list (StringMap.find "function_definitions" env) name) then
+ 					let error = ErrorMsg(fi2, name, us"WRONG_NUMBER_OF_PARAMS") in add_env_var env "errors" error 
+ 				else env
+ 			else 
+ 				env
+ 		)
+ 		| _ -> loop f tmlist env)
 
 (* Function to analyze scope. 
    env is a list of two lists: 
@@ -171,17 +227,25 @@ let analyze_scope ast errors =
 		(* Statements *)
 		 | TmDef(fi,isconst,name,tm) ->
 		 	(match tm with 
-		 		| TmFunc(fi2, params, tm2) -> let data = FunctionInfo(fi, name, (List.length params), false) in traverse tm (add_env_var env "function_definitions" data)
+		 		| TmFunc(fi2, params, tm2) -> let data = FunctionInfo(fi, name, (List.length params), false, (is_non_void tm)) in traverse tm (add_env_var env "function_definitions" data)
 	 			| TmVar(fi2, isconst2, name2) -> let varinfo = VariableInfo(name) in traverse tm (add_env_var env "env" varinfo)
 		 		| TmAssign(fi2, name2, tm2) -> let varinfo = VariableInfo(name) in  traverse tm (add_env_var env "env" varinfo)
 		 		| TmConst(fi2, const2) -> let varinfo = VariableInfo(name) in  traverse tm (if isconst then env else (add_env_var env "env" varinfo))
+		 		| TmCall(fi2, tm2, tmlist) -> (* A call in a definition means that we handle a return value *) handle_tm_call traverse env tm2 tmlist true
 		 		| _ -> let varinfo = VariableInfo(name) in  traverse tm (add_env_var env "env" varinfo))
 		 | TmWhile (fi, tm_head, tm_body) -> traverse tm_body env
 		 | TmIf(fi,tm1,tm2,tm3) -> merge_environments (traverse tm2 env) (match tm3 with 
 		 	| Some(tm) -> traverse tm env 
 		 	| None -> env ) ["env"; "errors"; "function_definitions"]
-		 | TmAssign(fi,name,tm) -> traverse tm env
-		 | TmRet(fi,tm) -> traverse tm env
+		 | TmAssign(fi,name,tm) -> (
+		 	match tm with 
+		 		| TmCall(fi2, tm2, tmlist) -> handle_tm_call traverse env tm2 tmlist true (* Handling return value *)
+		 		| _ -> traverse tm env
+		 	)
+		 | TmRet(fi,tm) -> (match tm with 
+		 	| TmCall(fi2, tm2, tmlist) -> handle_tm_call traverse env tm2 tmlist true (* Handling return value *)
+		 	|	_ -> traverse tm env
+		 	)
 		(* Expressions *)
 		 | TmVar(fi,isconst,name) -> 
 		 	if exists_in_environment name env "env" then
@@ -191,19 +255,8 @@ let analyze_scope ast errors =
 		 | TmConst(fi,const) -> env
 		 | TmFunc(fi,params,tm) -> traverse tm (loop (fun name acc -> let varinfo = VariableInfo(name) in add_env_var acc "env" varinfo) params env)
 		 | TmCall(fi,tm,tmlist) -> 
-		 	(* Since this is a function call, we want to check if it is a defined function (in comparison to for instance print) *)
-		 	(match tm with 
-		 		| TmVar(fi2, isconst2, name) -> (
-		 			if exists_in_environment name env "function_definitions" then
-		 				(* Mark function as called *)
-		 				let env = mark_as_called env name in
-		 				if (List.length tmlist) <> (get_num_params_in_list (StringMap.find "function_definitions" env) name) then
-		 					let error = ErrorMsg(fi2, name, us"WRONG_NUMBER_OF_PARAMS") in add_env_var env "errors" error 
-		 				else env
-		 			else 
-		 				env
-		 		)
-		 		| _ -> loop traverse tmlist env)
+		 	(* If we are here, we are not in an assignment *)
+		 	handle_tm_call traverse env tm tmlist false
 		(* Other *)
 		 | TmScope(fi,tmlist) -> get_scope_environment (loop traverse tmlist env) ["errors"; "function_definitions"] "env"
 	in 
@@ -212,72 +265,20 @@ let analyze_scope ast errors =
 	let function_definitions = StringMap.find "function_definitions" environment in 
 	reduce (fun x acc -> 
 		match x with 
-			| FunctionInfo(fi, name, num_params, called) -> (
+			| FunctionInfo(fi, name, num_params, called, non_void) -> (
 				if not called then 
 					let error = ErrorMsg(fi, name, us"FUNCTION_NOT_CALLED") in 
 					error::acc
 				else 
 					acc
 				)
+			| _ -> acc
 	) function_definitions errors
-
-(* Function to find missing calls to declared functions.
-   Populates a string map with a list of Ustring with the declared functions in 'function_definitions'
-   and the calls in 'calls' and checks that every declared function is called *)
-(*let find_missing_calls ast errors = 
-	let rec traverse ast env = 
-		match ast with 
-		(* Statements *)
-		 | TmDef(fi,isconst,name,tm) ->
-		 	(match tm with 
-		 		| TmFunc(fi2, const, tm2) -> traverse tm (add_env_var env "function_definitions" name)
-	 			| TmVar(fi2, isconst2, name2) -> traverse tm env
-		 		| TmAssign(fi2, name2, tm2) -> traverse tm env
-		 		| TmConst(fi2, const2) -> traverse tm env
-		 		| _ -> traverse tm env)
-		 | TmWhile (fi, tm_head, tm_body) -> traverse tm_body env
-		 | TmIf(fi,tm1,tm2,tm3) -> merge_environments "function_definitions" (traverse tm2 env) (match tm3 with 
-		 	| Some(tm) -> traverse tm env 
-		 	| None -> env ) ["function_definitions";"calls"]
-		 | TmAssign(fi,name,tm) -> traverse tm env
-		 | TmRet(fi,tm) -> traverse tm env
-		(* Expressions *)
-		 | TmVar(fi,isconst,name) -> env
-		 | TmConst(fi,const) -> env
-		 | TmFunc(fi,params,tm) -> traverse tm env
-		 | TmCall(fi,tm,tmlist) -> 
-		 	(match tm with 
-		 		| TmVar(fi2, isconst2, name) -> let call = CallInfo(fi, name) in loop traverse tmlist (add_env_var env "calls" call)
-		 		| _ -> loop traverse tmlist env)
-		(* Other *)
-		 | TmScope(fi,tmlist) -> loop traverse tmlist env
-	in 
-	let calls_map = traverse ast (get_empty_environment ["function_definitions";"calls"]) in 
-	let errors = reduce (fun x acc -> if exists x (StringMap.find "calls" calls_map) then acc else (let error = ErrorMsg() x::acc)) (StringMap.find "function_definitions" calls_map) [] in 
-*)
 
 (* Function to detect uncatched return values
    by traversing the ast and detecting defined functions with return statements
    and checking that calls to those functions are contained in a assignment term *)
 (*let detect_uncatched_return_values ast = 
-	let rec is_non_void ast = 
-		match ast with 
-		(* Statements *)
-		 | TmDef(fi,isconst,name,tm) -> is_non_void tm
-		 | TmWhile (fi, tm_head, tm_body) -> is_non_void tm_body
-		 | TmIf(fi,tm1,tm2,tm3) -> is_non_void tm2 || (match tm3 with 
-		 	| Some(tm) -> is_non_void tm
-		 	| None -> false )
-		 | TmAssign(fi,name,tm) -> is_non_void tm
-		 | TmRet(fi,tm) -> true
-		(* Expressions *)
-		 | TmVar(fi,isconst,name) -> false
-		 | TmConst(fi,const) -> false
-		 | TmFunc(fi,params,tm) -> is_non_void tm
-		 | TmCall(fi,tm,tmlist) -> false
-		(* Other *)
-		 | TmScope(fi,tmlist) -> boolean_reduce is_non_void tmlist
-	in
 	let rec traverse ast env = 
 		match ast with 
 		(* Statements *)
