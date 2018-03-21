@@ -22,7 +22,6 @@
   let str2tm fi s =
     match Ustring.to_utf8 s with
     | "print" -> TmConst(fi,CPrint)
-    | "break" -> TmConst(fi, Break)
     | _ -> TmVar(fi,false,s)
 %}
 
@@ -139,7 +138,7 @@ stmt:
        TmRet(fi,$2) }
  | BREAK 
      { let fi = mkinfo $1.i $1.i in 
-        TmConst(fi,Break)}
+        TmBreak(fi)}
 
 
 expr:
