@@ -15,8 +15,9 @@ module StringMap = Map.Make (String)
 (* ERROR MESSAGES *)
 (*
 * VAR_NOT_IN_SCOPE
-* WRONG_NUM_OF_PARAMS
-
+* WRONG_NUMBER_OF_PARAMS
+* UNCATCHED_RETURN
+* FUNCTION_NOT_CALLED
 *)
 
 (* A function consists of a name and number of params *)
@@ -202,7 +203,7 @@ let check_function_for_return env tm in_assignment =
  		| _ -> env
  		)
 
-let handle_tm_call f env tm tmlist in_assignment = 
+let rec handle_tm_call f env tm tmlist in_assignment = 
 	(* Since this is a function call, we want to check if it is a defined function (in comparison to for instance print) *)
  	(match tm with 
  		| TmVar(fi2, isconst2, name) -> (
@@ -216,6 +217,12 @@ let handle_tm_call f env tm tmlist in_assignment =
  			else 
  				env
  		)
+ 		| TmConst(fi, const) -> (* We are using a const function, which means that we are handling return value *)
+ 			loop (fun tm2 acc -> 
+ 				match tm2 with 
+ 					| TmCall(fi3, tm3, tmlist3) -> handle_tm_call f acc tm3 tmlist3 true
+ 					| _ -> f tm2 acc
+ 			) tmlist env
  		| _ -> loop f tmlist env)
 
 (* Function to analyze scope. 
@@ -266,7 +273,7 @@ let analyze_scope ast errors =
 	let environment = traverse ast (StringMap.add "errors" errors (get_empty_environment ["env";"function_definitions"])) in 
 	let errors = StringMap.find "errors" environment in 
 	let function_definitions = StringMap.find "function_definitions" environment in 
-	reduce (fun x acc -> 
+	loop (fun x acc -> 
 		match x with 
 			| FunctionInfo(fi, name, num_params, called, non_void) -> (
 				if not called then 
