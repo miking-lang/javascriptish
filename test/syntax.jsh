@@ -34,6 +34,9 @@ while(x < 7){
   while(true){
     i = i + 1
     var x = 2
+    if(i > 4) {
+      break
+    }
   }
 }
 if(z && true){

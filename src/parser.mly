@@ -43,6 +43,7 @@
 %token <unit Ast.tokendata> RETURN
 %token <unit Ast.tokendata> TRUE
 %token <unit Ast.tokendata> FALSE
+%token <unit Ast.tokendata> BREAK
 
 %token <unit Ast.tokendata> EQ            /* "="  */
 %token <unit Ast.tokendata> ADD           /* "+"  */
@@ -135,6 +136,9 @@ stmt:
  | RETURN expr
      { let fi = mkinfo $1.i (tm_info $2) in
        TmRet(fi,$2) }
+ | BREAK 
+     { let fi = mkinfo $1.i $1.i in 
+        TmBreak(fi)}
 
 
 expr:

@@ -39,8 +39,10 @@ type tm =
  | TmConst       of info * const
  | TmFunc        of info * ustring list * tm
  | TmCall        of info * tm * tm list
+ | TmBreak       of info
 (* Other *)
  | TmScope       of info * tm list
+
 
 
 (* Returns the info field from a term *)
@@ -141,6 +143,7 @@ and pprint_general prec ptype n tm  =
       | TmConst(fi,c) -> pprint_const 0 ptype n c tlst
       | t -> pp 0 n false t ^. us"(" ^.
              Ustring.concat (us", ") (List.map (pp 0 n false) tlst) ^. us")")
+    | TmBreak(fi) -> us"break"
     | TmScope(fi,tlst) ->
       Ustring.concat (us"") (List.map (pp 0 n true) tlst)
     ) ^. if stmt then us"\n" else us""
