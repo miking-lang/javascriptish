@@ -61,6 +61,7 @@ let tm_info t =
   | TmCall(fi,_,_) -> fi
   (* Other *)
   | TmScope(fi,_) -> fi
+  | TmBreak(fi) -> fi
 
 
 (* Kind of pretty printing *)

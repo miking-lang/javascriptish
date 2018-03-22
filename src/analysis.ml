@@ -191,6 +191,7 @@ let rec is_non_void tm =
 	 | TmCall(fi,tm,tmlist) -> false
 	(* Other *)
 	 | TmScope(fi,tmlist) -> boolean_reduce is_non_void tmlist
+	 | TmBreak(fi) -> false
 
 let check_function_for_return env tm in_assignment =
 	(match tm with 
@@ -267,6 +268,7 @@ let analyze_scope ast errors =
 		 | TmCall(fi,tm,tmlist) -> 
 		 	(* If we are here, we are not in an assignment *)
 		 	handle_tm_call traverse env tm tmlist false
+	 	 | TmBreak(fi) -> env
 		(* Other *)
 		 | TmScope(fi,tmlist) -> get_scope_environment (loop traverse tmlist env) env ["errors"; "function_definitions"] "env"
 	in 
