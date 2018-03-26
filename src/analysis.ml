@@ -291,22 +291,6 @@ let analyze_scope ast errors =
 	program is ran with argument 'analyze' *)
 
 let analyze ast = 
-	(*printf "Listing all variables in file: \n";
-	let variables = fetch_variables ast in
-	print_list variables;*)
 	let analyze_results = analyze_scope ast [] in
 	if (List.length analyze_results) > 0 then
-		print_errors analyze_results "Found errors:";
-	(*let missing_calls = find_missing_calls ast in 
-	if (List.length missing_calls) > 0 then 
-		(print_endline "File contains missing calls:";
-		print_list missing_calls);*)
-	(*let function_parameters_result = number_of_function_parameters ast in 
-	let function_parameters = StringMap.find "errors" function_parameters_result in
-	if List.length function_parameters > 0 then
-		(print_endline "Functions that has wrong number of parameters:";
-		print_list function_parameters);*)
-	(*let uncatched_returns = detect_uncatched_return_values ast in 
-	if List.length uncatched_returns > 0 then 
-		(print_endline "Function calls that do not catch return values:";
-		print_list uncatched_returns)*)
+		print_errors analyze_results "Found errors:"
