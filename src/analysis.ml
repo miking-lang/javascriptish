@@ -25,7 +25,7 @@ type fd = FuncData of ustring * int
 type environment_info = 
 	| ErrorMsg of info * ustring * ustring (* fi, name, message *)
 	| FunctionMsg of info * ustring * ustring * int * bool
-	| VariableInfo of ustring
+	| VariableInfo of info * ustring (* fi, name *)
 	| FunctionInfo of info * ustring * int * bool * bool (* name, number_of_arguments, called?, non_void? *)
 	| CallInfo of info * ustring
 
@@ -39,15 +39,18 @@ let append l1 l2 =
     in
     loop [] l1 l2
 
+let print_env_info item = 
+	match item with
+		| VariableInfo(_, name) -> uprint_string(us"Variable: " ^. name); print_string "\n"
+		| ErrorMsg(fi, name, msg) -> uprint_endline (msg ^. us": " ^. name);
+		| _ -> ()
+
 (* Function to print a list of different environment_infos *)
 let print_list lst = 
 	let rec loop lst = 
 		match lst with 
 			| [] -> ()
-			| x::xs -> match x with 
-				| VariableInfo(name) -> uprint_endline(us"Variable: " ^. name); loop xs
-				| ErrorMsg(fi, name, msg) -> uprint_endline (msg ^. us": " ^. name); loop xs
-				| _ -> ()
+			| x::xs -> print_env_info x; loop xs
 	in loop lst
 
 (* A reduce function : apply function f to each element in list
@@ -77,10 +80,18 @@ let rec exists name lst =
 	match lst with 
 		| [] -> false 
 		| x::xs -> (match x with 
-			| VariableInfo(name2) -> if Ustring.equal name name2 then true else (exists name xs)
+			| VariableInfo(_,name2) -> if Ustring.equal name name2 then true else (exists name xs)
 			| FunctionInfo(info, name2, num_args, called, non_void) -> if Ustring.equal name name2 then true else (exists name xs)
 			| _ -> false
 		)
+
+let rec get_in_list_of_env_infos name lst = 
+	match lst with 
+		| [] -> None
+		| x::xs -> (match x with 
+			| VariableInfo(_,name2) -> if Ustring.equal name name2 then Some(x) else (get_in_list_of_env_infos name xs)
+			| _ -> None
+		) 
 
 let rec exists_funcdata item lst = 
 	match lst with 
@@ -94,6 +105,9 @@ let rec exists_funcdata item lst =
 (* Check if item exists in env-part of map env *)		
 let exists_in_environment name env lst_name = 
 	exists name (StringMap.find lst_name env)
+
+let get_from_environment name env lst_name = 
+	get_in_list_of_env_infos name (StringMap.find lst_name env)
 
 (* Functions to handle environment 
    it is a map with lists, under the strings provided in lst_names
@@ -173,7 +187,13 @@ let get_num_params_in_list lst name =
 				| _ -> loop xs)
 		in loop lst
 
-(* Fnction to check if the term ends with a return statement or not *)
+let is_const_bool const = 
+	match const with 
+		| CTrue -> true
+		| CFalse -> true
+		| _ -> false
+
+(* Function to check if the term ends with a return statement or not *)
 let rec is_non_void tm = 
 	match tm with 
 	(* Statements *)
@@ -237,17 +257,18 @@ let analyze_scope ast errors =
 		 | TmDef(fi,isconst,name,tm) ->
 		 	(match tm with 
 		 		| TmFunc(fi2, params, tm2) -> let data = FunctionInfo(fi, name, (List.length params), false, (is_non_void tm)) in traverse tm (add_env_var env "function_definitions" data)
-	 			| TmVar(fi2, isconst2, name2) -> let varinfo = VariableInfo(name) in traverse tm (add_env_var env "env" varinfo)
-		 		| TmAssign(fi2, name2, tm2) -> let varinfo = VariableInfo(name) in traverse tm (add_env_var env "env" varinfo)
-		 		| TmConst(fi2, const2) -> let varinfo = VariableInfo(name) in traverse tm (if isconst then env else (add_env_var env "env" varinfo))
-		 		| TmCall(fi2, tm2, tmlist) -> (* A call in a definition means that we handle a return value *) let varinfo = VariableInfo(name) in handle_tm_call traverse (add_env_var env "env" varinfo) tm2 tmlist true
-		 		| _ -> let varinfo = VariableInfo(name) in  traverse tm (add_env_var env "env" varinfo))
+	 			| TmVar(fi2, isconst2, name2) -> let varinfo = VariableInfo(fi, name) in traverse tm (add_env_var env "env" varinfo)
+		 		| TmAssign(fi2, name2, tm2) ->let varinfo = VariableInfo(fi, name) in traverse tm (add_env_var env "env" varinfo)
+		 		| TmConst(fi2, const2) -> let varinfo = VariableInfo(fi, name) in traverse tm (if isconst then env else (add_env_var env "env" varinfo))
+		 		| TmCall(fi2, tm2, tmlist) -> (* A call in a definition means that we handle a return value *) let varinfo = VariableInfo(fi, name) in handle_tm_call traverse (add_env_var env "env" varinfo) tm2 tmlist true
+		 		| _ -> let varinfo = VariableInfo(fi, name) in  traverse tm (add_env_var env "env" varinfo))
 		 | TmWhile (fi, tm_head, tm_body) -> traverse tm_body (traverse tm_head env)
 		 | TmIf(fi,tm1,tm2,tm3) -> merge_environments (traverse tm2 env) (match tm3 with 
 		 	| Some(tm) -> traverse tm env 
 		 	| None -> env ) ["env"; "errors"; "function_definitions"]
-		 | TmAssign(fi,name,tm) -> (
-		 	let varinfo = VariableInfo(name) in
+		 | TmAssign(fi,name,tm) -> 
+		 	(
+		 	let varinfo = VariableInfo(fi, name) in
 		 	let env = (add_env_var env "env" varinfo) in
 		 	match tm with 
 		 		| TmCall(fi2, tm2, tmlist) -> handle_tm_call traverse env tm2 tmlist true (* Handling return value *)
@@ -264,7 +285,7 @@ let analyze_scope ast errors =
 		 	else 
 		 		let error = ErrorMsg(fi,name, us"VAR_NOT_IN_SCOPE") in add_env_var env "errors" error
 		 | TmConst(fi,const) -> env
-		 | TmFunc(fi,params,tm) -> traverse tm (loop (fun name acc -> let varinfo = VariableInfo(name) in add_env_var acc "env" varinfo) params env)
+		 | TmFunc(fi,params,tm) -> traverse tm (loop (fun name acc -> let varinfo = VariableInfo(fi, name) in add_env_var acc "env" varinfo) params env)
 		 | TmCall(fi,tm,tmlist) -> 
 		 	(* If we are here, we are not in an assignment *)
 		 	handle_tm_call traverse env tm tmlist false
@@ -287,10 +308,65 @@ let analyze_scope ast errors =
 			| _ -> acc
 	) function_definitions errors
 
+let check_loops ast errors = 
+	let rec traverse ast env = 
+		match ast with 
+		(* Statements *)
+		 | TmDef(fi,isconst,name,tm) -> traverse tm env
+		 | TmWhile (fi, tm_head, tm_body) -> (match tm_body with 
+		 		| TmScope(fi, tmlist) ->
+		 			loop (fun tm env -> 
+		 				match tm with 
+		 					| TmIf(fi,tm1,tm2,tm3) -> 
+		 						match tm2 with 
+		 							| TmScope(fi, tmlist) -> 
+		 								loop (fun tm5 env -> 
+		 									match tm5 with 
+					 							| TmAssign(fi, name, tm) -> match tm with 
+					 								| TmConst(fi2, const) -> let varinfo = VariableInfo(fi, name) in add_env_var env "booleans" varinfo
+					 								| _ -> env
+					 							| _ -> env
+					 						) tmlist env
+		 							| _ -> env
+		 					| _ -> env
+		 			) tmlist env
+		 	)
+		 | TmIf(fi,tm1,tm2,tm3) -> 
+		 	(match tm1 with 
+		 		| TmVar(fi2, isconst, name) -> (
+		 			if exists_in_environment name env "booleans" then
+		 				let error = ErrorMsg(fi2, name, us"BOOLEAN_INSTEAD_OF_BREAK") in 
+		 				add_env_var env "errors" error
+		 			else 
+		 				env)
+		 		| _ -> env)
+		 | TmAssign(fi,name,tm) -> 
+		 	(
+		 	let varinfo = VariableInfo(fi, name) in
+		 	add_env_var env "env" varinfo)
+		 | TmRet(fi,tm) -> env
+		(* Expressions *)
+		 | TmVar(fi,isconst,name) -> 
+		 	if exists_in_environment name env "env" then
+		 		env
+		 	else 
+		 		let error = ErrorMsg(fi,name, us"VAR_NOT_IN_SCOPE") in add_env_var env "errors" error
+		 | TmConst(fi,const) -> env
+		 | TmFunc(fi,params,tm) -> traverse tm (loop (fun name acc -> let varinfo = VariableInfo(fi, name) in add_env_var acc "env" varinfo) params env)
+		 | TmCall(fi,tm,tmlist) -> env
+	 	 | TmBreak(fi) -> env
+		(* Other *)
+		 | TmScope(fi,tmlist) -> loop traverse tmlist env
+	in 
+	let environment = traverse ast (StringMap.add "errors" errors (get_empty_environment ["env";"booleans"])) in 
+	StringMap.find "errors" environment
+
+
 (* Our main function, called from jsh.ml when
 	program is ran with argument 'analyze' *)
 
 let analyze ast = 
 	let analyze_results = analyze_scope ast [] in
-	if (List.length analyze_results) > 0 then
-		print_errors analyze_results "Found errors:"
+	let loop_results = check_loops ast analyze_results in 
+	if (List.length loop_results) > 0 then
+		print_errors loop_results "Found errors:";
