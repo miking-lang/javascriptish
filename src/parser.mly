@@ -149,6 +149,8 @@ expr:
      { TmCall($2.i,TmConst($2.i,CMul),[$1;$3]) }
  | expr DIV expr
      { TmCall($2.i,TmConst($2.i,CDiv),[$1;$3]) }
+ | expr MOD expr
+     { TmCall($2.i,TmConst($2.i,CMod),[$1;$3]) }
  | expr LESS expr
      { TmCall($2.i,TmConst($2.i,CLess),[$1;$3]) }
  | expr LESSEQUAL expr
