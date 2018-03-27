@@ -315,21 +315,67 @@ let check_loops ast errors =
 		 | TmDef(fi,isconst,name,tm) -> traverse tm env
 		 | TmWhile (fi, tm_head, tm_body) -> (match tm_body with 
 		 		| TmScope(fi, tmlist) ->
-		 			loop (fun tm env -> 
-		 				match tm with 
+		 			(loop (fun tm env -> 
+		 				(match tm with 
 		 					| TmIf(fi,tm1,tm2,tm3) -> 
-		 						match tm2 with 
+		 						(match tm2 with 
 		 							| TmScope(fi, tmlist) -> 
-		 								loop (fun tm5 env -> 
-		 									match tm5 with 
-					 							| TmAssign(fi, name, tm) -> match tm with 
+		 								(loop (fun tm5 env -> 
+		 									(match tm5 with 
+					 							| TmAssign(fi, name, tm) -> (match tm with 
 					 								| TmConst(fi2, const) -> let varinfo = VariableInfo(fi, name) in add_env_var env "booleans" varinfo
-					 								| _ -> env
-					 							| _ -> env
-					 						) tmlist env
-		 							| _ -> env
-		 					| _ -> env
-		 			) tmlist env
+					 								| TmDef(_,_,_,_) -> env
+									 				| TmWhile(_,_,_) -> env
+									 				| TmIf(_,_,_,_) -> env
+									 				| TmAssign(_,_,_) -> env
+									 				| TmRet(_,_) -> env
+									 				| TmVar(_,_,_) -> env
+									 				| TmFunc(_,_,_) -> env
+									 				| TmCall(_,_,_) -> env
+									 				| TmBreak(_) -> env
+													| TmScope(_,_) -> env)
+					 							| TmDef(_,_,_,_) -> env
+								 				| TmWhile(_,_,_) -> env
+								 				| TmIf(_,_,_,_) -> env
+								 				| TmRet(_,_) -> env
+								 				| TmVar(_,_,_) -> env
+								 				| TmConst(_,_) -> env
+								 				| TmFunc(_,_,_) -> env
+								 				| TmCall(_,_,_) -> env
+								 				| TmBreak(_) -> env
+												| TmScope(_,_) -> env)
+					 						) tmlist env)
+		 							| TmDef(_,_,_,_) -> env
+					 				| TmWhile(_,_,_) -> env
+					 				| TmIf(_,_,_,_) -> env
+					 				| TmAssign(_,_,_) -> env
+					 				| TmRet(_,_) -> env
+					 				| TmVar(_,_,_) -> env
+					 				| TmConst(_,_) -> env
+					 				| TmFunc(_,_,_) -> env
+					 				| TmCall(_,_,_) -> env
+					 				| TmBreak(_) -> env)
+		 					| TmDef(_,_,_,_) -> env
+			 				| TmWhile(_,_,_) -> env
+			 				| TmAssign(_,_,_) -> env
+			 				| TmRet(_,_) -> env
+			 				| TmVar(_,_,_) -> env
+			 				| TmConst(_,_) -> env
+			 				| TmFunc(_,_,_) -> env
+			 				| TmCall(_,_,_) -> env
+			 				| TmBreak(_) -> env
+							| TmScope(_,_) -> env)
+		 			) tmlist env)
+		 		| TmDef(_,_,_,_) -> env
+ 				| TmWhile(_,_,_) -> env
+ 				| TmIf(_,_,_,_) -> env
+ 				| TmAssign(_,_,_) -> env
+ 				| TmRet(_,_) -> env
+ 				| TmVar(_,_,_) -> env
+ 				| TmConst(_,_) -> env
+ 				| TmFunc(_,_,_) -> env
+ 				| TmCall(_,_,_) -> env
+ 				| TmBreak(_) -> env
 		 	)
 		 | TmIf(fi,tm1,tm2,tm3) -> 
 		 	(match tm1 with 
