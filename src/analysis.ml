@@ -12,29 +12,16 @@ open Msg
 
 module StringMap = Map.Make (String)
 
-(* ERROR MESSAGES *)
-(*
-* VAR_NOT_IN_SCOPE
-* WRONG_NUMBER_OF_PARAMS
-* UNCATCHED_RETURN
-* FUNCTION_NOT_CALLED
-*)
-
-(* A function consists of a name and number of params *)
-type fd = FuncData of ustring * int
 type environment_info = 
-	| ErrorMsg of message
-	| FunctionMsg of info * ustring * ustring * int * bool
+	| ErrorMsg of message (* See msg.ml *)
 	| VariableInfo of info * ustring (* fi, name *)
 	| FunctionInfo of info * ustring * int * bool * bool (* name, number_of_arguments, called?, non_void? *)
-	| CallInfo of info * ustring
 
 let print_env_info item = 
 	match item with
 		| VariableInfo(_, name) -> uprint_string(us"Variable: " ^. name); print_string "\n"
 		| ErrorMsg(msg) -> uprint_endline (message2str(msg))
 		| FunctionInfo (_,name, _,_,_) -> uprint_string(us"Function: " ^. name); print_string "\n"
-		| _ -> ()
 
 (* Function to append two lists *)
 let append l1 l2 =
@@ -68,9 +55,6 @@ let rec loop f lst acc =
 		| [] -> acc
 		| x::xs -> loop f xs (f x acc)
 
-let map f l = List.fold_right (fun x a -> (f x) :: a) l []
-let map_two_args f l y = List.fold_right (fun x a -> (f x y) :: a) l []
-
 let rec boolean_reduce f lst = 
 	match lst with 
 		| [] -> false
@@ -84,35 +68,14 @@ let rec exists name lst =
 			| VariableInfo(_,name2) -> if Ustring.equal name name2 then true else (exists name xs)
 			| FunctionInfo(info, name2, num_args, called, non_void) -> if Ustring.equal name name2 then true else (exists name xs)
 			| _ -> false
-		)
-
-let rec get_in_list_of_env_infos name lst = 
-	match lst with 
-		| [] -> None
-		| x::xs -> (match x with 
-			| VariableInfo(_,name2) -> if Ustring.equal name name2 then Some(x) else (get_in_list_of_env_infos name xs)
-			| _ -> None
-		) 
-
-let rec exists_funcdata item lst = 
-	match lst with 
-		| [] -> false 
-		| x::xs -> (
-			match x, item with 
-				| FuncData(name, _), FuncData(name2, _) -> (if Ustring.equal name name2 then true else (exists_funcdata item xs))	
-		)
-		
+		)		
 
 (* Check if item exists in env-part of map env *)		
 let exists_in_environment name env lst_name = 
 	exists name (StringMap.find lst_name env)
 
-let get_from_environment name env lst_name = 
-	get_in_list_of_env_infos name (StringMap.find lst_name env)
-
 (* Functions to handle environment 
-   it is a map with lists, under the strings provided in lst_names
-   Both contains Ustrings *)
+   Environment is a map with lists of environment_info, with string keys *)
 let get_empty_environment lst_names =
 	let rec loop lst = 
 		match lst with 
@@ -168,9 +131,6 @@ let does_return_value env function_name =
 					)
 				| _ -> loop xs
 	in loop (StringMap.find "function_definitions" env)
-	
-let get_num_params_from_func_data data = 
-	match data with FuncData(name, num_params) -> num_params
 
 let get_num_params_in_list lst name = 
 	let rec loop lst = 
