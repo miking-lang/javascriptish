@@ -23,11 +23,18 @@ module StringMap = Map.Make (String)
 (* A function consists of a name and number of params *)
 type fd = FuncData of ustring * int
 type environment_info = 
-	| ErrorMsg of info * ustring * ustring (* fi, name, message *)
+	| ErrorMsg of message
 	| FunctionMsg of info * ustring * ustring * int * bool
 	| VariableInfo of info * ustring (* fi, name *)
 	| FunctionInfo of info * ustring * int * bool * bool (* name, number_of_arguments, called?, non_void? *)
 	| CallInfo of info * ustring
+
+let print_env_info item = 
+	match item with
+		| VariableInfo(_, name) -> uprint_string(us"Variable: " ^. name); print_string "\n"
+		| ErrorMsg(msg) -> uprint_endline (message2str(msg))
+		| FunctionInfo (_,name, _,_,_) -> uprint_string(us"Function: " ^. name); print_string "\n"
+		| _ -> ()
 
 (* Function to append two lists *)
 let append l1 l2 =
@@ -38,12 +45,6 @@ let append l1 l2 =
     | h :: t, l -> loop (h :: acc) t l
     in
     loop [] l1 l2
-
-let print_env_info item = 
-	match item with
-		| VariableInfo(_, name) -> uprint_string(us"Variable: " ^. name); print_string "\n"
-		| ErrorMsg(fi, name, msg) -> uprint_endline (msg ^. us": " ^. name);
-		| _ -> ()
 
 (* Function to print a list of different environment_infos *)
 let print_list lst = 
@@ -58,7 +59,7 @@ let print_list lst =
 let rec reduce f lst acc = 
 	match lst with 
 		| [] -> acc
-		| x::xs -> append (f x acc) (reduce f xs acc)
+		| x::xs -> append(f x acc) (reduce f xs acc)
 
 (* A function to loop over elements in lst 
    calling function f with accumulator acc *)
@@ -132,17 +133,11 @@ let get_scope_environment env old_env keep_lst replace =
 	let new_map = loop keep_lst in 
 	let old_content = StringMap.find replace old_env in 
 	StringMap.add replace old_content new_map
+
 let add_env_var env lst_name var = 
 	let current = StringMap.find lst_name env in
 	let new_content = var::current in 
 	StringMap.add lst_name new_content env
-
-let merge_environments env1 env2 lst_names = 
-	let rec loop lst = 
-		match lst with 
-			| [] -> StringMap.empty
-			| x::xs -> StringMap.add x (List.append (StringMap.find x env1) (StringMap.find x env2)) (loop xs)
-	in loop lst_names
 
 (* Mark function with provided name as called *)
 let mark_as_called env function_name = 
@@ -217,7 +212,7 @@ let check_function_for_return env tm in_assignment =
 	(match tm with 
  		| TmVar(fi2, isconst2, name) -> (
  			if not in_assignment && does_return_value env name then 
- 				let error = ErrorMsg(fi2, name, us"UNCATCHED_RETURN") in
+ 				let error = ErrorMsg(UNCAUGHT_RETURN, WARNING, fi2, [name]) in
  				add_env_var env "errors" error
  			else
  				env)
@@ -233,16 +228,16 @@ let rec handle_tm_call f env tm tmlist in_assignment =
  				(* Mark function as called *)
  				let env = mark_as_called env name in
  				if (List.length tmlist) <> (get_num_params_in_list (StringMap.find "function_definitions" env) name) then
- 					let error = ErrorMsg(fi2, name, us"WRONG_NUMBER_OF_PARAMS") in add_env_var env "errors" error 
+ 					let error = ErrorMsg(WRONG_NUMBER_OF_PARAMS, ERROR, fi2, [name]) in add_env_var env "errors" error 
  				else env
  			else 
  				env
  		)
  		| TmConst(fi, const) -> (* We are using a const function, which means that we are handling return value *)
  			loop (fun tm2 acc -> 
- 				match tm2 with 
+ 				(match tm2 with 
  					| TmCall(fi3, tm3, tmlist3) -> handle_tm_call f acc tm3 tmlist3 true
- 					| _ -> f tm2 acc
+ 					| _ -> f tm2 acc)
  			) tmlist env
  		| _ -> loop f tmlist env)
 
@@ -251,7 +246,7 @@ let rec handle_tm_call f env tm tmlist in_assignment =
    the first is the allowed variables 
    the second is the problematic variables *)
 let analyze_scope ast errors = 
-	let rec traverse ast env = 
+	let rec traverse ast env =
 		match ast with 
 		(* Statements *)
 		 | TmDef(fi,isconst,name,tm) ->
@@ -263,9 +258,14 @@ let analyze_scope ast errors =
 		 		| TmCall(fi2, tm2, tmlist) -> (* A call in a definition means that we handle a return value *) let varinfo = VariableInfo(fi, name) in handle_tm_call traverse (add_env_var env "env" varinfo) tm2 tmlist true
 		 		| _ -> let varinfo = VariableInfo(fi, name) in  traverse tm (add_env_var env "env" varinfo))
 		 | TmWhile (fi, tm_head, tm_body) -> traverse tm_body (traverse tm_head env)
-		 | TmIf(fi,tm1,tm2,tm3) -> merge_environments (traverse tm2 env) (match tm3 with 
+		 | TmIf(fi,tm1,tm2,tm3) -> (
+		 	let env = traverse tm2 (match tm3 with 
 		 	| Some(tm) -> traverse tm env 
-		 	| None -> env ) ["env"; "errors"; "function_definitions"]
+		 	| None -> env ) in
+		 	match tm1 with 
+		 		| TmCall(fi1, tm, tmlist) -> handle_tm_call traverse env tm tmlist true
+		 		| _ -> traverse tm1 env
+		 	)
 		 | TmAssign(fi,name,tm) -> 
 		 	(
 		 	let varinfo = VariableInfo(fi, name) in
@@ -283,7 +283,7 @@ let analyze_scope ast errors =
 		 	if exists_in_environment name env "env" then
 		 		env
 		 	else 
-		 		let error = ErrorMsg(fi,name, us"VAR_NOT_IN_SCOPE") in add_env_var env "errors" error
+		 		let error = ErrorMsg(VAR_NOT_IN_SCOPE, ERROR, fi, []) in add_env_var env "errors" error
 		 | TmConst(fi,const) -> env
 		 | TmFunc(fi,params,tm) -> traverse tm (loop (fun name acc -> let varinfo = VariableInfo(fi, name) in add_env_var acc "env" varinfo) params env)
 		 | TmCall(fi,tm,tmlist) -> 
@@ -297,10 +297,11 @@ let analyze_scope ast errors =
 	let errors = StringMap.find "errors" environment in 
 	let function_definitions = StringMap.find "function_definitions" environment in 
 	loop (fun x acc -> 
+		print_env_info x;
 		match x with 
 			| FunctionInfo(fi, name, num_params, called, non_void) -> (
 				if not called then 
-					let error = ErrorMsg(fi, name, us"FUNCTION_NOT_CALLED") in 
+					let error = ErrorMsg(FUNCTION_NOT_CALLED, WARNING, fi, [name]) in 
 					error::acc
 				else 
 					acc
@@ -381,7 +382,7 @@ let check_loops ast errors =
 		 	(match tm1 with 
 		 		| TmVar(fi2, isconst, name) -> (
 		 			if exists_in_environment name env "booleans" then
-		 				let error = ErrorMsg(fi2, name, us"BOOLEAN_INSTEAD_OF_BREAK") in 
+		 				let error = ErrorMsg(BOOLEAN_INSTEAD_OF_BREAK, WARNING, fi2, []) in 
 		 				add_env_var env "errors" error
 		 			else 
 		 				env)
@@ -392,11 +393,7 @@ let check_loops ast errors =
 		 	add_env_var env "env" varinfo)
 		 | TmRet(fi,tm) -> env
 		(* Expressions *)
-		 | TmVar(fi,isconst,name) -> 
-		 	if exists_in_environment name env "env" then
-		 		env
-		 	else 
-		 		let error = ErrorMsg(fi,name, us"VAR_NOT_IN_SCOPE") in add_env_var env "errors" error
+		 | TmVar(fi,isconst,name) -> env 
 		 | TmConst(fi,const) -> env
 		 | TmFunc(fi,params,tm) -> traverse tm (loop (fun name acc -> let varinfo = VariableInfo(fi, name) in add_env_var acc "env" varinfo) params env)
 		 | TmCall(fi,tm,tmlist) -> env
@@ -415,4 +412,4 @@ let analyze ast =
 	let analyze_results = analyze_scope ast [] in
 	let loop_results = check_loops ast analyze_results in 
 	if (List.length loop_results) > 0 then
-		print_errors loop_results "Found errors:";
+		print_errors loop_results "Found errors:"

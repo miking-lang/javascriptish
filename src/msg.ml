@@ -21,6 +21,11 @@ type id =
   | LEX_STRING_NOT_TERMINATED
   | LEX_INVALID_ESCAPE
   | PARSE_ERROR
+  | VAR_NOT_IN_SCOPE
+  | WRONG_NUMBER_OF_PARAMS
+  | UNCAUGHT_RETURN
+  | FUNCTION_NOT_CALLED
+  | BOOLEAN_INSTEAD_OF_BREAK
   | ERROR of string
 
 
@@ -46,6 +51,11 @@ let id2str id =
     | LEX_STRING_NOT_TERMINATED -> us"String is not terminated"
     | LEX_INVALID_ESCAPE -> us"Invalid escape characters"
     | PARSE_ERROR -> us"Parse error"
+    | VAR_NOT_IN_SCOPE -> us"The variable does not exist in scope"
+    | WRONG_NUMBER_OF_PARAMS -> us"Wrong number of arguments"
+    | UNCAUGHT_RETURN -> us"The function returns a value, but the value is not caught"
+    | FUNCTION_NOT_CALLED -> us"The function is declared, but not called"
+    | BOOLEAN_INSTEAD_OF_BREAK -> us"You are using a boolean variable instead of break"
     | ERROR msg -> us msg
 
 (** [severity2str s] returns the severity strings ["ERROR"] or
