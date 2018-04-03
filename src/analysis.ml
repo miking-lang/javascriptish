@@ -87,6 +87,7 @@ let print_errors lst headline =
 	print_endline headline;
 	print_list lst
 
+(* Function that keeps the lists from old_env given by the keep_lst and replaces the one given by replace *)
 let get_scope_environment env old_env keep_lst replace =
 	let rec loop lst = 
 		match lst with 
@@ -97,6 +98,7 @@ let get_scope_environment env old_env keep_lst replace =
 	let old_content = StringMap.find replace old_env in 
 	StringMap.add replace old_content new_map
 
+(* Function to add variable to environment *)
 let add_env_var env lst_name var = 
 	let current = StringMap.find lst_name env in
 	let new_content = var::current in 
@@ -118,6 +120,7 @@ let mark_as_called env function_name =
 				| _ -> loop xs
 	in StringMap.add "function_definitions" (loop (StringMap.find "function_definitions" env)) env
 
+(* Check if a function does return a value *)
 let does_return_value env function_name = 
 	let rec loop lst = 
 		match lst with 
@@ -132,6 +135,9 @@ let does_return_value env function_name =
 				| _ -> loop xs
 	in loop (StringMap.find "function_definitions" env)
 
+(* Get the number of parameters for the function 
+   with the provided name in a list of environment 
+   infos (variant function info) *)
 let get_num_params_in_list lst name = 
 	let rec loop lst = 
 		match lst with 
@@ -142,12 +148,13 @@ let get_num_params_in_list lst name =
 				| _ -> loop xs)
 		in loop lst
 
+(* Is our constant a boolean? *)
 let is_const_bool const = 
 	match const with 
 		| CTrue -> true
 		| CFalse -> true
 		| _ -> false
-
+(* Get minimum value of a, b and c *)
 let minimum a b c = 
 	if a < b then (
 		if a < c then 
@@ -161,7 +168,8 @@ let minimum a b c =
 		else
 			c
 	)
-
+(* The Levenshtein Distance algorithm. Gives the lowest number 
+   of mutations between Ustring s and Ustring t *)
 let rec levenshtein_distance s len_s t len_t = 
 	if len_s = 0 then len_t
 	else (
@@ -216,6 +224,7 @@ let rec is_non_void tm =
 	 | TmScope(fi,tmlist) -> boolean_reduce is_non_void tmlist
 	 | TmBreak(fi) -> false
 
+(* Check if a function returns a value and if it is caught or not *)
 let check_function_for_return env tm in_assignment =
 	(match tm with 
  		| TmVar(fi2, isconst2, name) -> (
@@ -227,6 +236,10 @@ let check_function_for_return env tm in_assignment =
  		| _ -> env
  		)
 
+(* The function that handles calls, and checks for 
+   * Returns
+   * Number of parameters 
+   * Argument definitions *)
 let rec handle_tm_call f env tm tmlist in_assignment = 
 	(* Since this is a function call, we want to check if it is a defined function (in comparison to for instance print) *)
  	(match tm with 
@@ -327,6 +340,9 @@ let analyze_scope ast errors =
 			| _ -> acc
 	) function_definitions errors
 
+(* Function that checks for patterns 
+   that indicate the usage of flag 
+   variables instead of break statements *)
 let check_loops ast errors = 
 	let rec traverse ast env = 
 		match ast with 
