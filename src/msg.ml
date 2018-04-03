@@ -44,14 +44,14 @@ exception Error of message
 
 (** [id2str id] returns the identifier string for [id], e.g.,
     "LEX_UNKNOWN_CHAR" *)
-let id2str id =
+let id2str id args =
   match id  with
     | LEX_UNKNOWN_CHAR -> us"Unknown character"
     | LEX_COMMENT_NOT_TERMINATED -> us"Comment is not terminated"
     | LEX_STRING_NOT_TERMINATED -> us"String is not terminated"
     | LEX_INVALID_ESCAPE -> us"Invalid escape characters"
     | PARSE_ERROR -> us"Parse error"
-    | VAR_NOT_IN_SCOPE -> us"The variable does not exist in scope"
+    | VAR_NOT_IN_SCOPE -> us"The variable " ^. (List.nth args 0) ^. us" does not exist in scope, did you mean " ^. (List.nth args 1) ^. us"?"
     | WRONG_NUMBER_OF_PARAMS -> us"Wrong number of arguments"
     | UNCAUGHT_RETURN -> us"The function returns a value, but the value is not caught"
     | FUNCTION_NOT_CALLED -> us"The function is declared, but not called"
@@ -82,9 +82,9 @@ let message2str (id,sev,info,args)  =
 	    (ustring_of_int l2) ^. us":" ^.
 	    (ustring_of_int c2) ^. us" " ^.
 	    (severity2str sev) ^. us": " ^.
-	    (id2str id)
+	    (id2str id args)
         end
-    |  NoInfo -> us"NO INFO: " ^. (id2str id)
+    |  NoInfo -> us"NO INFO: " ^. (id2str id args)
 
 let raise_error fi msg =
   raise (Error (ERROR(msg),ERROR,fi,[]))
