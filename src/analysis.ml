@@ -148,6 +148,52 @@ let is_const_bool const =
 		| CFalse -> true
 		| _ -> false
 
+let minimum a b c = 
+	if a < b then (
+		if a < c then 
+			a 
+		else 
+			c
+		)
+	else (
+		if b < c then 
+			b 
+		else
+			c
+	)
+
+let rec levenshtein_distance s len_s t len_t = 
+	if len_s = 0 then len_t
+	else (
+		if len_t = 0 then len_s
+		else (
+			let cost = if Ustring.equal (Ustring.sub s (len_s-1) 1) (Ustring.sub t (len_t-1) 1) then 
+				0
+			else 
+				1 in 
+			minimum 
+				((levenshtein_distance s (len_s-1) t len_t) + 1)
+				((levenshtein_distance s len_s t (len_t-1)) + 1)
+				((levenshtein_distance s (len_s-1) t (len_t-1)) + cost)
+			
+		)
+	) 
+
+(* Function to find possible variable names if the provided name is mispelled *)
+let find_possible_variables name env = 
+	let rec loop lst distance suggestion = 
+		match lst with 
+			| [] -> uprint_endline suggestion; suggestion
+			| x::xs -> (
+				match x with 
+					| VariableInfo(_, x) -> (let dist = levenshtein_distance name (Ustring.length name) x (Ustring.length x) in 
+							if dist < distance then 
+								(loop xs dist x)
+							else 
+								(loop xs distance suggestion)))
+	in loop (StringMap.find "env" env) 10 (us"")
+
+
 (* Function to check if the term ends with a return statement or not *)
 let rec is_non_void tm = 
 	match tm with 
@@ -213,7 +259,7 @@ let analyze_scope ast errors =
 		 	(match tm with 
 		 		| TmFunc(fi2, params, tm2) -> let data = FunctionInfo(fi, name, (List.length params), false, (is_non_void tm)) in traverse tm (add_env_var env "function_definitions" data)
 	 			| TmVar(fi2, isconst2, name2) -> let varinfo = VariableInfo(fi, name) in traverse tm (add_env_var env "env" varinfo)
-		 		| TmAssign(fi2, name2, tm2) ->let varinfo = VariableInfo(fi, name) in traverse tm (add_env_var env "env" varinfo)
+		 		| TmAssign(fi2, name2, tm2) -> let varinfo = VariableInfo(fi, name) in traverse tm (add_env_var env "env" varinfo)
 		 		| TmConst(fi2, const2) -> let varinfo = VariableInfo(fi, name) in traverse tm (if isconst then env else (add_env_var env "env" varinfo))
 		 		| TmCall(fi2, tm2, tmlist) -> (* A call in a definition means that we handle a return value *) let varinfo = VariableInfo(fi, name) in handle_tm_call traverse (add_env_var env "env" varinfo) tm2 tmlist true
 		 		| _ -> let varinfo = VariableInfo(fi, name) in  traverse tm (add_env_var env "env" varinfo))
@@ -243,7 +289,8 @@ let analyze_scope ast errors =
 		 	if exists_in_environment name env "env" then
 		 		env
 		 	else 
-		 		let error = ErrorMsg(VAR_NOT_IN_SCOPE, ERROR, fi, []) in add_env_var env "errors" error
+		 		(let suggestion = find_possible_variables name env in 
+		 		let error = ErrorMsg(VAR_NOT_IN_SCOPE, ERROR, fi, [suggestion]) in add_env_var env "errors" error)
 		 | TmConst(fi,const) -> env
 		 | TmFunc(fi,params,tm) -> traverse tm (loop (fun name acc -> let varinfo = VariableInfo(fi, name) in add_env_var acc "env" varinfo) params env)
 		 | TmCall(fi,tm,tmlist) -> 
