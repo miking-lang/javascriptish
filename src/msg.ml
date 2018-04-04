@@ -52,9 +52,9 @@ let id2str id args =
     | LEX_INVALID_ESCAPE -> us"Invalid escape characters"
     | PARSE_ERROR -> us"Parse error"
     | VAR_NOT_IN_SCOPE -> us"The variable " ^. (List.nth args 0) ^. us" does not exist in scope, did you mean " ^. (List.nth args 1) ^. us"?"
-    | WRONG_NUMBER_OF_PARAMS -> us"Wrong number of arguments"
-    | UNCAUGHT_RETURN -> us"The function returns a value, but the value is not caught"
-    | FUNCTION_NOT_CALLED -> us"The function is declared, but not called"
+    | WRONG_NUMBER_OF_PARAMS -> us"Wrong number of arguments passed to function " ^. (List.nth args 0)
+    | UNCAUGHT_RETURN -> us"The function " ^. (List.nth args 0) ^. us" returns a value, but the value is not caught"
+    | FUNCTION_NOT_CALLED -> us"The function " ^. (List.nth args 0) ^. us" is declared, but not called"
     | BOOLEAN_INSTEAD_OF_BREAK -> us"You are using a boolean variable instead of break"
     | ERROR msg -> us msg
 
