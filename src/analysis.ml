@@ -282,7 +282,10 @@ let analyze_scope ast errors =
 		 		| TmConst(fi2, const2) -> let varinfo = VariableInfo(fi, name) in traverse tm (if isconst then env else (add_env_var env "env" varinfo))
 		 		| TmCall(fi2, tm2, tmlist) -> (* A call in a definition means that we handle a return value *) let varinfo = VariableInfo(fi, name) in handle_tm_call traverse (add_env_var env "env" varinfo) tm2 tmlist true
 		 		| _ -> let varinfo = VariableInfo(fi, name) in  traverse tm (add_env_var env "env" varinfo))
-		 | TmWhile (fi, tm_head, tm_body) -> traverse tm_body (traverse tm_head env)
+		 | TmWhile (fi, tm_head, tm_body) -> traverse tm_body (
+		 	match tm_head with 
+		 		| TmCall(fi1, tm, tmlist) -> handle_tm_call traverse env tm tmlist true
+		 		| _ -> traverse tm_head env)
 		 | TmIf(fi,tm1,tm2,tm3) -> (
 		 	let env = traverse tm2 (match tm3 with 
 		 	| Some(tm) -> traverse tm env 
