@@ -51,7 +51,7 @@ let id2str id args =
     | LEX_STRING_NOT_TERMINATED -> us"String is not terminated"
     | LEX_INVALID_ESCAPE -> us"Invalid escape characters"
     | PARSE_ERROR -> us"Parse error"
-    | VAR_NOT_IN_SCOPE -> us"The variable " ^. (List.nth args 0) ^. us" does not exist in scope, did you mean " ^. (List.nth args 1) ^. us"?"
+    | VAR_NOT_IN_SCOPE -> if (Ustring.equal (List.nth args 1) (us"")) then (us"The variable " ^. (List.nth args 0) ^. us" does not exist in scope") else (us"The variable " ^. (List.nth args 0) ^. us" does not exist in scope, did you mean " ^. (List.nth args 1) ^. us"?")
     | WRONG_NUMBER_OF_PARAMS -> us"Wrong number of arguments passed to function " ^. (List.nth args 0)
     | UNCAUGHT_RETURN -> us"The function " ^. (List.nth args 0) ^. us" returns a value, but the value is not caught"
     | FUNCTION_NOT_CALLED -> us"The function " ^. (List.nth args 0) ^. us" is declared, but not called"
