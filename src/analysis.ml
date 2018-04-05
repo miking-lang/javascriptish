@@ -233,8 +233,7 @@ let check_function_for_return env tm in_assignment =
  				add_env_var env "errors" error
  			else
  				env)
- 		| _ -> env
- 		)
+ 		| _ -> env)
 
 (* The function that handles calls, and checks for 
    * Returns
@@ -256,8 +255,7 @@ let rec handle_tm_call f env tm tmlist in_assignment =
  					let error = ErrorMsg(WRONG_NUMBER_OF_PARAMS, ERROR, fi2, [name]) in add_env_var env "errors" error 
  				else env
  			else 
- 				env)
- 		)
+ 				env))
  		| TmConst(fi, const) -> (* We are using a const function, which means that we are handling return value *)
  			loop (fun tm2 acc -> 
  				(match tm2 with 
@@ -288,12 +286,11 @@ let analyze_scope ast errors =
 		 		| _ -> traverse tm_head env)
 		 | TmIf(fi,tm1,tm2,tm3) -> (
 		 	let env = traverse tm2 (match tm3 with 
-		 	| Some(tm) -> traverse tm env 
-		 	| None -> env ) in
+		 		| Some(tm) -> traverse tm env 
+		 		| None -> env ) in
 		 	match tm1 with 
 		 		| TmCall(fi1, tm, tmlist) -> handle_tm_call traverse env tm tmlist true
-		 		| _ -> traverse tm1 env
-		 	)
+		 		| _ -> traverse tm1 env)
 		 | TmAssign(fi,name,tm) -> 
 		 	(if exists_in_environment name env "env" then
 		 		(match tm with 
@@ -305,20 +302,18 @@ let analyze_scope ast errors =
 		 		let env = add_env_var env "errors" error in
 				match tm with 
 		 			| TmCall(fi2, tm2, tmlist) -> handle_tm_call traverse env tm2 tmlist true (* Handling return value *)
-		 			| _ -> traverse tm env
-		 		)
-		 	)
+		 			| _ -> traverse tm env))
 		 | TmRet(fi,tm) -> (match tm with 
 		 	| TmCall(fi2, tm2, tmlist) -> handle_tm_call traverse env tm2 tmlist true (* Handling return value *)
-		 	|	_ -> traverse tm env
-		 	)
+		 	|	_ -> traverse tm env)
 		(* Expressions *)
 		 | TmVar(fi,isconst,name) -> 
 		 	if exists_in_environment name env "env" then
 		 		env
 		 	else 
 		 		(let suggestion = find_possible_variables name env in 
-		 		let error = ErrorMsg(VAR_NOT_IN_SCOPE, ERROR, fi, [name;suggestion]) in add_env_var env "errors" error)
+		 		let error = ErrorMsg(VAR_NOT_IN_SCOPE, ERROR, fi, [name;suggestion]) in 
+		 		add_env_var env "errors" error)
 		 | TmConst(fi,const) -> env
 		 | TmFunc(fi,params,tm) -> traverse tm (loop (fun name acc -> let varinfo = VariableInfo(fi, name) in add_env_var acc "env" varinfo) params env)
 		 | TmCall(fi,tm,tmlist) -> 
@@ -338,10 +333,8 @@ let analyze_scope ast errors =
 					let error = ErrorMsg(FUNCTION_NOT_CALLED, WARNING, fi, [name]) in 
 					error::acc
 				else 
-					acc
-				)
-			| _ -> acc
-	) function_definitions errors
+					acc)
+			| _ -> acc) function_definitions errors
 
 (* Function that checks for patterns 
    that indicate the usage of flag 
@@ -381,8 +374,7 @@ let check_loops ast errors =
 								 				| TmFunc(_,_,_) -> env
 								 				| TmCall(_,_,_) -> env
 								 				| TmBreak(_) -> env
-												| TmScope(_,_) -> env)
-					 						) tmlist env)
+												| TmScope(_,_) -> env)) tmlist env)
 		 							| TmDef(_,_,_,_) -> env
 					 				| TmWhile(_,_,_) -> env
 					 				| TmIf(_,_,_,_) -> env
@@ -402,8 +394,7 @@ let check_loops ast errors =
 			 				| TmFunc(_,_,_) -> env
 			 				| TmCall(_,_,_) -> env
 			 				| TmBreak(_) -> env
-							| TmScope(_,_) -> env)
-		 			) tmlist env)
+							| TmScope(_,_) -> env)) tmlist env)
 		 		| TmDef(_,_,_,_) -> env
  				| TmWhile(_,_,_) -> env
  				| TmIf(_,_,_,_) -> env
@@ -413,8 +404,7 @@ let check_loops ast errors =
  				| TmConst(_,_) -> env
  				| TmFunc(_,_,_) -> env
  				| TmCall(_,_,_) -> env
- 				| TmBreak(_) -> env
-		 	)
+ 				| TmBreak(_) -> env)
 		 | TmIf(fi,tm1,tm2,tm3) -> 
 		 	(match tm1 with 
 		 		| TmVar(fi2, isconst, name) -> (
@@ -425,8 +415,7 @@ let check_loops ast errors =
 		 				env)
 		 		| _ -> env)
 		 | TmAssign(fi,name,tm) -> 
-		 	(
-		 	let varinfo = VariableInfo(fi, name) in
+		 	(let varinfo = VariableInfo(fi, name) in
 		 	add_env_var env "env" varinfo)
 		 | TmRet(fi,tm) -> env
 		(* Expressions *)
