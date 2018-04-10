@@ -18,7 +18,7 @@ function find_primes(limit) {
 	var i = 2
 	while ( i < limit ) {
 		if ( is_prime(i) ) {
-			print(i)
+			console.log(i)
 		}
 	i = i + 1
 	}

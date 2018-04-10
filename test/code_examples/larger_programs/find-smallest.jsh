@@ -22,4 +22,4 @@ function find_smallest_number(limit) {
 	}
 }
 
-print(find_smallest_number(20))
+console.log(find_smallest_number(20))

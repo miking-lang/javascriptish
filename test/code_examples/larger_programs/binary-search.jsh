@@ -1,3 +1,7 @@
+/*
+	A program that uses binary search to find elements in an array of int
+ */
+
 function floor(num) {
 	return num - (num % 1)
 }
@@ -31,13 +35,13 @@ function binarySearch(items, value) {
 // Test cases
 var arr = [7,2,3,5,8,4,2,5,1]
 if ( binarySearch(arr,8) == 4 ) {
-	print("Number 8 was found correctly")
+	console.log("Number 8 was found correctly")
 } else {
-	print("We could not find number 8 a place 4")
+	console.log("We could not find number 8 a place 4")
 }
 
 if ( binarySearch(arr, 57) == -1 ) {
-	print("Number 57 does not exists in array, that is good")
+	console.log("Number 57 does not exists in array, that is good")
 } else {
-	print("We were able to find number 57 in some strange way")
+	console.log("We were able to find number 57 in some strange way")
 }
