@@ -51,11 +51,11 @@ let id2str id args =
     | LEX_STRING_NOT_TERMINATED -> us"String is not terminated"
     | LEX_INVALID_ESCAPE -> us"Invalid escape characters"
     | PARSE_ERROR -> us"Parse error"
-    | VAR_NOT_IN_SCOPE -> if (Ustring.equal (List.nth args 1) (us"")) then (us"The variable " ^. (List.nth args 0) ^. us" does not exist in scope") else (us"The variable " ^. (List.nth args 0) ^. us" does not exist in scope, did you mean " ^. (List.nth args 1) ^. us"?")
-    | WRONG_NUMBER_OF_PARAMS -> us"Wrong number of arguments passed to function " ^. (List.nth args 0)
-    | UNCAUGHT_RETURN -> us"The function " ^. (List.nth args 0) ^. us" returns a value, but the value is not caught"
-    | FUNCTION_NOT_CALLED -> us"The function " ^. (List.nth args 0) ^. us" is declared, but not called"
-    | BOOLEAN_INSTEAD_OF_BREAK -> us"You are using a boolean variable instead of break"
+    | VAR_NOT_IN_SCOPE -> if (Ustring.equal (List.nth args 1) (us"")) then (us"I could not find the variable " ^. (List.nth args 0) ^. us" in the current scope. Remember that a variable declared inside a function is not available outside that function.") else (us"I could not find the variable " ^. (List.nth args 0) ^. us" in the current scope, did you mean " ^. (List.nth args 1) ^. us"?")
+    | WRONG_NUMBER_OF_PARAMS -> us"You seem to have passed the wrong number of arguments to the function " ^. (List.nth args 0) ^. us". I expected " ^. (List.nth args 1) ^. us", but got " ^. (List.nth args 2)
+    | UNCAUGHT_RETURN -> us"The function " ^. (List.nth args 0) ^. us" returns a value, but that value is never used. Perhaps you want to assign that value to a variable?"
+    | FUNCTION_NOT_CALLED -> us"You have declared a function called " ^. (List.nth args 0) ^. us", but you never call it. Remember to call your functions. If you do not use your function, consider removing it from your code to make it more readable."
+    | BOOLEAN_INSTEAD_OF_BREAK -> us"You are using a boolean variable instead of a break statement. Consider changing this in order to make your code more readable and efficient."
     | ERROR msg -> us msg
 
 (** [severity2str s] returns the severity strings ["ERROR"] or

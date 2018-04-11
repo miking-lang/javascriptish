@@ -251,8 +251,10 @@ let rec handle_tm_call f env tm tmlist in_assignment =
  			if exists_in_environment name env "function_definitions" then
  				(* Mark function as called *)
  				let env = mark_as_called env name in
- 				if (List.length tmlist) <> (get_num_params_in_list (StringMap.find "function_definitions" env) name) then
- 					let error = ErrorMsg(WRONG_NUMBER_OF_PARAMS, ERROR, fi2, [name]) in add_env_var env "errors" error 
+ 				let expected_num_params = get_num_params_in_list (StringMap.find "function_definitions" env) name in
+ 				let provided_num_args = List.length tmlist in
+ 				if provided_num_args <> expected_num_params then
+ 					let error = ErrorMsg(WRONG_NUMBER_OF_PARAMS, ERROR, fi2, [name; (ustring_of_int expected_num_params); (ustring_of_int provided_num_args)]) in add_env_var env "errors" error 
  				else env
  			else 
  				env))
