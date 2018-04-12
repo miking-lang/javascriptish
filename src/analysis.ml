@@ -15,13 +15,13 @@ module StringMap = Map.Make (String)
 type environment_info = 
 	| ErrorMsg of message (* See msg.ml *)
 	| VariableInfo of info * ustring (* fi, name *)
-	| FunctionInfo of info * ustring * int * bool * bool (* name, number_of_arguments, called?, non_void? *)
+	| FunctionInfo of info * ustring * int * bool * bool * ustring list (* name, number_of_arguments, called?, non_void?, parameter names*)
 
 let print_env_info item = 
 	match item with
 		| VariableInfo(_, name) -> uprint_string(us"Variable: " ^. name); print_string "\n"
 		| ErrorMsg(msg) -> uprint_endline (message2str(msg))
-		| FunctionInfo (_,name, _,_,_) -> uprint_string(us"Function: " ^. name); print_string "\n"
+		| FunctionInfo (_,name,_,_,_,_) -> uprint_string(us"Function: " ^. name); print_string "\n"
 
 (* Function to append two lists *)
 let append l1 l2 =
@@ -60,13 +60,18 @@ let rec boolean_reduce f lst =
 		| [] -> false
 		| x::xs -> (f x) || (boolean_reduce f xs)
 
+let rec boolean_reduce_and f lst = 
+	match lst with 
+		| [] -> true
+		| x::xs -> (f x) && (boolean_reduce f xs)
+
 (* Does name exists in lst? *)
 let rec exists name lst = 
 	match lst with 
 		| [] -> false 
 		| x::xs -> (match x with 
 			| VariableInfo(_,name2) -> if Ustring.equal name name2 then true else (exists name xs)
-			| FunctionInfo(info, name2, num_args, called, non_void) -> if Ustring.equal name name2 then true else (exists name xs)
+			| FunctionInfo(_,name2,_,_,_,_) -> if Ustring.equal name name2 then true else (exists name xs)
 			| _ -> false
 		)		
 
@@ -110,9 +115,9 @@ let mark_as_called env function_name =
 		match lst with 
 			| [] -> []
 			| x::xs -> match x with 
-				| FunctionInfo(fi, name, num_args, called, non_void) -> (
+				| FunctionInfo(fi, name, num_args, called, non_void, params) -> (
 					if Ustring.equal name function_name then 
-						let new_function = FunctionInfo(fi, name, num_args, true, non_void) in 
+						let new_function = FunctionInfo(fi, name, num_args, true, non_void, params) in 
 						new_function::xs
 					else 
 						x::(loop xs)
@@ -126,7 +131,7 @@ let does_return_value env function_name =
 		match lst with 
 			| [] -> false
 			| x::xs -> match x with 
-				| FunctionInfo(fi, name, num_args, called, non_void) -> (
+				| FunctionInfo(_,name,_,_,non_void,_) -> (
 					if Ustring.equal name function_name then 
 						non_void
 					else 
@@ -144,7 +149,20 @@ let get_num_params_in_list lst name =
 			| [] -> 0
 			| x::xs -> (
 			match x with 
-				| FunctionInfo(info, func_name, num_params, called, non_void) -> if Ustring.equal name func_name then num_params else (loop xs)
+				| FunctionInfo(info,func_name,num_params,_,_,_) -> if Ustring.equal name func_name then num_params else (loop xs)
+				| _ -> loop xs)
+		in loop lst
+
+(* Get the parameters for the function 
+   with the provided name in a list of environment 
+   infos (variant function info) *)
+let get_params_in_list lst name = 
+	let rec loop lst = 
+		match lst with 
+			| [] -> []
+			| x::xs -> (
+			match x with 
+				| FunctionInfo(info,func_name,_,_,_,params) -> if Ustring.equal name func_name then params else (loop xs)
 				| _ -> loop xs)
 		in loop lst
 
@@ -199,7 +217,7 @@ let find_possible_variables name env =
 								(loop xs dist x)
 							else 
 								(loop xs distance suggestion))
-					| FunctionInfo(_,_,_,_,_) -> us""
+					| FunctionInfo(_,_,_,_,_,_) -> us""
 					| ErrorMsg(_) -> us"")
 	in loop (StringMap.find "env" env) 10 (us"")
 
@@ -235,12 +253,23 @@ let check_function_for_return env tm in_assignment =
  				env)
  		| _ -> env)
 
+let uses_same_parameter_names params function_name function_definitions = 
+	let rec is_in lst value = 
+		match lst with 
+			| [] -> false 
+			| x::xs -> (match x with 
+				| TmVar(fi, isconst2, name) -> if Ustring.equal name value then true else (is_in xs value)
+				| _ -> print_endline "Something else!!!"; false)
+		in
+	let function_params = get_params_in_list function_definitions function_name in
+	boolean_reduce_and (fun x -> is_in params x) function_params
+
+
 (* The function that handles calls, and checks for 
    * Returns
    * Number of parameters 
    * Argument definitions *)
 let rec handle_tm_call f env tm tmlist in_assignment = 
-	(* Since this is a function call, we want to check if it is a defined function (in comparison to for instance print) *)
  	(match tm with 
  		| TmVar(fi2, isconst2, name) -> (
  			loop (fun tm2 acc -> 
@@ -248,14 +277,19 @@ let rec handle_tm_call f env tm tmlist in_assignment =
  					| TmCall(fi3, tm3, tmlist3) -> handle_tm_call f acc tm3 tmlist3 true
  					| _ -> f tm2 acc)) tmlist (
  			let env = check_function_for_return env tm in_assignment in
- 			if exists_in_environment name env "function_definitions" then
+ 			if exists_in_environment name env "function_definitions" then (* Since this is a function call, we want to check if it is a defined function (in comparison to for instance print) *)
  				(* Mark function as called *)
  				let env = mark_as_called env name in
+ 				(* Calculate number of parameters and arguments *)
  				let expected_num_params = get_num_params_in_list (StringMap.find "function_definitions" env) name in
  				let provided_num_args = List.length tmlist in
  				if provided_num_args <> expected_num_params then
  					let error = ErrorMsg(WRONG_NUMBER_OF_PARAMS, ERROR, fi2, [name; (ustring_of_int expected_num_params); (ustring_of_int provided_num_args)]) in add_env_var env "errors" error 
- 				else env
+ 				else (
+ 					(* Number of parameters were correct, see if all variables passed as arguments are called the same things as the parameters *)
+ 					if uses_same_parameter_names tmlist name (StringMap.find "function_definitions" env) then 
+ 						let error = ErrorMsg(SAME_PARAMETER_NAMES, NOTE, fi2,[name]) in add_env_var env "errors" error 
+ 					else env)
  			else 
  				env))
  		| TmConst(fi, const) -> (* We are using a const function, which means that we are handling return value *)
@@ -276,7 +310,7 @@ let analyze_scope ast errors =
 		(* Statements *)
 		 | TmDef(fi,isconst,name,tm) ->
 		 	(match tm with 
-		 		| TmFunc(fi2, params, tm2) -> let data = FunctionInfo(fi, name, (List.length params), false, (is_non_void tm)) in traverse tm (add_env_var env "function_definitions" data)
+		 		| TmFunc(fi2, params, tm2) -> let data = FunctionInfo(fi, name, (List.length params), false, (is_non_void tm), params) in traverse tm (add_env_var env "function_definitions" data)
 	 			| TmVar(fi2, isconst2, name2) -> let varinfo = VariableInfo(fi, name) in traverse tm (add_env_var env "env" varinfo)
 		 		| TmAssign(fi2, name2, tm2) -> let varinfo = VariableInfo(fi, name) in traverse tm (add_env_var env "env" varinfo)
 		 		| TmConst(fi2, const2) -> let varinfo = VariableInfo(fi, name) in traverse tm (if isconst then env else (add_env_var env "env" varinfo))
@@ -330,7 +364,7 @@ let analyze_scope ast errors =
 	let function_definitions = StringMap.find "function_definitions" environment in 
 	loop (fun x acc -> 
 		match x with 
-			| FunctionInfo(fi, name, num_params, called, non_void) -> (
+			| FunctionInfo(fi,name,num_params,called,non_void,_) -> (
 				if not called then 
 					let error = ErrorMsg(FUNCTION_NOT_CALLED, WARNING, fi, [name]) in 
 					error::acc
