@@ -23,6 +23,7 @@ let reserved_strings = [
   ("return",        fun(i) -> Parser.RETURN{i=i;v=()});
   ("true",          fun(i) -> Parser.TRUE{i=i;v=()});
   ("false",         fun(i) -> Parser.FALSE{i=i;v=()});
+  ("break",         fun(i) -> Parser.BREAK{i=i;v=()});
 
   (* Operators *)
   ("=",             fun(i) -> Parser.EQ{i=i;v=()});
