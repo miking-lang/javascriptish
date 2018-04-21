@@ -7,6 +7,7 @@ programming.
 ### Contributors
 
  * [David Broman](https://people.kth.se/~dbro/), KTH Royal Institute of Technology, Sweden
+ * [Johan Myrsmeden](https://www.kth.se/profile/johanmyr), KTH Royal Institute of Technology, Sweden
 
 ## Installation
 
@@ -56,7 +57,8 @@ which includes the following constructs:
 * variable and constant declarations
 * assignments
 * function calls
-
+* strings
+* arrays
 
 ### Missing constructs
 The following JavaScript constructs are still missing
@@ -64,7 +66,6 @@ The following JavaScript constructs are still missing
 * Classes
 * Objects
 * Numbers (floating point)
-* Strings
 * Anonymous functions
 
 

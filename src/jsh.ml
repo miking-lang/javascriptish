@@ -11,10 +11,10 @@ open Ustring.Op
 open Printf
 open Ast
 open Msg
-open Analysis
+(* open Analysis *)
 
 (* Different tasks for the program *)
-type prog_task = ProgRun | ProgPrint | ProgAnalyze
+type prog_task = ProgRun | ProgPrint  (* | ProgAnalyze *)
 
 
 (* Start of the program *)
@@ -26,7 +26,7 @@ let progstart task filename  =
     let ast = fs1 |> Ustring.lexing_from_channel |> Parser.main Lexer.main in
     match task with
     | ProgPrint -> uprint_endline (pprintext PrnNode ast)
-    | ProgAnalyze -> analyze ast
+    (* | ProgAnalyze -> analyze ast *)
     | ProgRun ->
         let name = "tempfile.js" in
         Ustring.write_file name (pprintext PrnNode ast);
@@ -65,7 +65,7 @@ let main =
   | "node"::name::lst -> progstart ProgPrint name
 
   (* Analyze the program, without running it  *)
-  | "analyze"::name::lst  ->  progstart ProgAnalyze name
+  (* | "analyze"::name::lst  ->  progstart ProgAnalyze name *)
 
   (* Run one program  *)
   | "run"::name::lst | name::lst  -> progstart ProgRun name

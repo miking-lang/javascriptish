@@ -87,6 +87,7 @@
 %left ADD SUB /*prec 8*/
 %left MUL DIV MOD /*prec 9*/
 %nonassoc UNARYMINUS /*prec 12*/
+%left DOT LSQUARE /* prec 12 */
 
 
 
@@ -110,9 +111,9 @@ stmt:
  | CONST IDENT ASSIGN expr
      { let fi = mkinfo $1.i $3.i in
        TmDef(fi,true,$2.v,$4) }
- | IDENT ASSIGN expr
-     { let fi = mkinfo $1.i $2.i in
-       TmAssign(fi,$1.v,$3) }
+ | left_assign ASSIGN expr
+     { let fi = mkinfo (tm_info $1) (tm_info $3) in
+       TmAssign(fi,$1,$3)  }
  | WHILE LPAREN expr RPAREN LCURLY seq RCURLY
      { let fi1 = mkinfo $1.i $4.i in
        let fi2 = mkinfo $5.i $7.i in
@@ -136,9 +137,20 @@ stmt:
  | RETURN expr
      { let fi = mkinfo $1.i (tm_info $2) in
        TmRet(fi,$2) }
- | BREAK 
-     { let fi = mkinfo $1.i $1.i in 
-        TmBreak(fi)}
+ | BREAK
+     { let fi = mkinfo $1.i $1.i in
+       TmBreak(fi)}
+
+left_assign:
+ | IDENT
+     { TmVar($1.i,false,$1.v) }
+ | left_assign DOT IDENT
+     { let fi = mkinfo (tm_info $1) $3.i in
+       TmProj(fi,$1,$3.v) }
+ | left_assign LSQUARE expr RSQUARE
+     { let fi = mkinfo (tm_info $1) $4.i in
+       TmArrIndex(fi,$1,$3) }
+
 
 
 expr:
@@ -146,7 +158,6 @@ expr:
      { $1 }
  | expr ADD expr
      { TmCall($2.i,TmConst($2.i,CAdd),[$1;$3]) }
-
  | expr SUB expr
       { TmCall($2.i,TmConst($2.i,CSub),[$1;$3]) }
  | expr MUL expr
@@ -176,6 +187,12 @@ expr:
  | SUB expr  %prec UNARYMINUS
      { let fi = mkinfo $1.i (tm_info $2) in
        TmCall(fi,TmConst(fi,CNeg),[$2]) }
+ | expr DOT IDENT
+     { let fi = mkinfo (tm_info $1) $3.i in
+       TmProj(fi,$1,$3.v) }
+ | expr LSQUARE expr RSQUARE
+     { let fi = mkinfo (tm_info $1) $4.i in
+       TmArrIndex(fi,$1,$3) }
  | IDENT LPAREN args RPAREN
      { let fi = mkinfo $1.i $4.i in
        TmCall(fi,str2tm $1.i $1.v,$3) }
@@ -190,6 +207,18 @@ params_rev:
      {[$1.v]}
  | params_rev COMMA IDENT
      {$3.v::$1}
+
+arrays:
+ |   {[]}
+ | arrays_rev
+     { List.rev $1 }
+
+arrays_rev:
+ | expr
+     {[$1]}
+ | arrays_rev COMMA expr
+     {$3::$1}
+
 
 args:
  |   {[]}
@@ -210,7 +239,12 @@ atom:
      { TmConst($1.i,CFalse) }
  | UINT
      { TmConst($1.i,CInt($1.v)) }
+ | STRING
+     { TmConst($1.i,CString($1.v)) }
  | IDENT
      { str2tm $1.i $1.v }
  | LPAREN expr RPAREN
      { $2 }
+ | LSQUARE arrays RSQUARE
+     { let fi = mkinfo $1.i $3.i in
+       TmArray(fi,$2)}

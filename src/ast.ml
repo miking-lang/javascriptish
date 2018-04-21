@@ -13,7 +13,8 @@ open Printf
 type const =
 (* Primitive data types *)
  | CTrue | CFalse
- | CInt of int
+ | CInt    of int
+ | CString of ustring
 (* Binary operators *)
  | CAdd  | CSub    | CMul   | CDiv     | CMod
  | CLess | CLessEq | CGreat | CGreatEq
@@ -27,12 +28,13 @@ type const =
 (* If a variable is declared as const or as a mutable variable *)
 type isconst = bool
 
+
 type tm =
 (* Statements *)
  | TmDef         of info * isconst * ustring * tm
  | TmWhile       of info * tm * tm
  | TmIf          of info * tm * tm * tm option
- | TmAssign      of info * ustring * tm
+ | TmAssign      of info * tm * tm
  | TmRet         of info * tm
 (* Expressions *)
  | TmVar         of info * isconst * ustring
@@ -40,6 +42,9 @@ type tm =
  | TmFunc        of info * ustring list * tm
  | TmCall        of info * tm * tm list
  | TmBreak       of info
+ | TmProj        of info * tm * ustring
+ | TmArrIndex    of info * tm * tm
+ | TmArray       of info * tm list
 (* Other *)
  | TmScope       of info * tm list
 
@@ -62,6 +67,9 @@ let tm_info t =
   (* Other *)
   | TmScope(fi,_) -> fi
   | TmBreak(fi) -> fi
+  | TmProj(fi,_,_) -> fi
+  | TmArrIndex(fi,_,_) -> fi
+  | TmArray(fi,_) -> fi
 
 
 (* Kind of pretty printing *)
@@ -81,6 +89,7 @@ let rec pprint_const prec ptype n c args =
    | CTrue -> us"true"
    | CFalse -> us"false"
    | CInt(i) -> us(sprintf "%d" i)
+   | CString(s) -> us"\"" ^. s ^. us"\""
   (* Binary operators *)
    | CAdd -> precparan 8 (ppa 8 0 ^. us" + " ^. ppa 8 1)
    | CSub -> precparan 8 (ppa 8 0 ^. us" - " ^. ppa 9 1)
@@ -134,7 +143,7 @@ and pprint_general prec ptype n tm  =
                        us"else{\n" ^. pp 0 (n+1) false tf ^.
                        mkspace (tabsize*n) ^. us"}"
          | None -> us"")
-    | TmAssign(fi,s,t1) -> s ^. us" = " ^. pp 0 n false t1
+    | TmAssign(fi,t1,t2) -> pp 0 n false t1 ^. us" = " ^. pp 0 n false t2
     | TmRet(fi,t1) -> us"return " ^. pp 0 n false t1
     | TmVar(fi,isconst,s) -> s
     | TmConst(fi,c) -> pprint_const 0 ptype n c []
@@ -145,6 +154,10 @@ and pprint_general prec ptype n tm  =
       | t -> pp 0 n false t ^. us"(" ^.
              Ustring.concat (us", ") (List.map (pp 0 n false) tlst) ^. us")")
     | TmBreak(fi) -> us"break"
+    | TmProj(fi,t1,id) -> pp 0 (n+1) false t1  ^. us"." ^. id
+    | TmArrIndex(fi,t1,t2) -> pp 0 (n+1) false  t1 ^. us"[" ^. pp 0 (n+1) false  t2 ^. us"]"
+    | TmArray(fi,tlst) -> us"[" ^.
+             Ustring.concat (us",") (List.map (pp 0 n false) tlst) ^. us"]"
     | TmScope(fi,tlst) ->
       Ustring.concat (us"") (List.map (pp 0 n true) tlst)
     ) ^. if stmt then us"\n" else us""
